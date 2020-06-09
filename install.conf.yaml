@@ -1,3 +1,10 @@
-- clean: []
-- link: {}
+- defaults:
+    link:
+      relink: true
+- clean: ['~']
+- link:
+    ~/.zshrc: zshrc
+    ~/.config/espanso/user/config.yml: espanso.yml
+    ~/.gitconfig: gitconfig
+
 - shell: []
