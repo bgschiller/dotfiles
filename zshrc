@@ -38,7 +38,9 @@ export NVM_DIR="$HOME/.nvm"
 # add yarn and yarn modules to path if not present
 [[ ":$PATH:" != *":$HOME/.yarn/bin:"* ]] && export PATH="$HOME/.yarn/bin:$PATH:$HOME/.config/yarn/global/node_modules/.bin/"
 
-if which xrandr 2>1 > /dev/null; then
+[[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && export PATH=":$HOME/.cargo/bin:$PATH"
+
+if which xrandr 2>&1 > /dev/null; then
   function twoscreen() {
     xrandr --dpi 276 --output ${1:-DP-1} --scale 2x2 --right-of eDP-1
     killall polybar 2> /dev/null
@@ -47,7 +49,7 @@ if which xrandr 2>1 > /dev/null; then
   }
 fi
 
-if which xclip 2>1 > /dev/null; then
+if which xclip 2>&1 > /dev/null; then
   function pbcopy() {
     xclip -i -selection clipboard
   }
@@ -56,7 +58,7 @@ if which xclip 2>1 > /dev/null; then
   }
 fi
 
-if which picocom 2>1 > /dev/null; then 
+if which picocom 2>&1 > /dev/null; then
   alias pico="sudo picocom -b 115200 /dev/ttyUSB0"
 fi
 
@@ -75,3 +77,8 @@ function csvheader() {
 
 alias terumoVPN='sudo openconnect  --protocol=gp usbgw.terumobct.com'
 
+export AUTOMATIONBUILD=/home/brian/terumo/CommonCode/CommonEmbedded/DockerBuild/Automation
+
+if [ -f ~/.sensitive-zshrc ]; then
+  source ~/.sensitive-zshrc
+fi
