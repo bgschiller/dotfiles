@@ -63,7 +63,11 @@ if which picocom 2>&1 > /dev/null; then
 fi
 
 source /usr/share/fzf/shell/key-bindings.zsh
-export PATH=$PATH:~/bin
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+[ -d ~/flutter/bin ] && [[ ":$PATH:" != *":$HOME/flutter/bin:"* ]] && export PATH=":$HOME/flutter/bin:$PATH"
+
+alias jl='jq . -C | less -R'
 
 export EDITOR=vim
 

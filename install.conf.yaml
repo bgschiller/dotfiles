@@ -4,7 +4,10 @@
 - clean: ['~']
 - link:
     ~/.zshrc: zshrc
-    ~/.config/espanso/user/config.yml: espanso.yml
+    ~/.config/espanso/user/config.yml:
+        path: espanso.yml
+        create: true
     ~/.gitconfig: gitconfig
-
+    ~/.config/jrnl/jrnl.yaml:
+        create: true
 - shell: []
