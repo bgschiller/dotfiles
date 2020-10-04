@@ -62,7 +62,8 @@ if which picocom 2>&1 > /dev/null; then
   alias pico="sudo picocom -b 115200 /dev/ttyUSB0"
 fi
 
-source /usr/share/fzf/shell/key-bindings.zsh
+[ -f /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh ] && source /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh
+[ -f /usr/share/fzf/shell/key-bindings.zsh ] && source /usr/share/fzf/shell/key-bindings.zsh
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 [ -d ~/flutter/bin ] && [[ ":$PATH:" != *":$HOME/flutter/bin:"* ]] && export PATH=":$HOME/flutter/bin:$PATH"
