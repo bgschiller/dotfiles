@@ -38,6 +38,8 @@ export NVM_DIR="$HOME/.nvm"
 # add yarn and yarn modules to path if not present
 [[ ":$PATH:" != *":$HOME/.yarn/bin:"* ]] && export PATH="$HOME/.yarn/bin:$PATH:$HOME/.config/yarn/global/node_modules/.bin/"
 
+[[ ":$PATH:" != *":$HOME/.composer/vendor/bin:"* ]] && export PATH=":$HOME/.composer/vendor/bin:$PATH"
+
 [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && export PATH=":$HOME/.cargo/bin:$PATH"
 
 if which xrandr 2>&1 > /dev/null; then

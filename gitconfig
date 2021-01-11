@@ -7,7 +7,7 @@
     cor = !git recent 25 | fzf --reverse --nth=1 --preview 'git log --patch --color {1}...{1}~5' | awk '{print $1}' | xargs git checkout
     burn-it-all = "!bash -c 'git restore --staged $(git rev-parse --show-toplevel) && git restore $(git rev-parse --show-toplevel) && git status -s | cut -f2 -d\" \" | xargs rm -rf'"
 [core]
-    excludesfile = .gitignore_global
+    excludesfile = /Users/brian/.gitignore_global
 [pull]
     rebase = true
 [filter "lfs"]
