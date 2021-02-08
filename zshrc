@@ -42,6 +42,8 @@ export NVM_DIR="$HOME/.nvm"
 
 [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && export PATH=":$HOME/.cargo/bin:$PATH"
 
+[[ -d /usr/local/go/bin ]] && [[ ":$PATH:" != *":/usr/local/go/bin:"* ]] && export PATH="$PATH:/usr/local/go/bin"
+
 if which xrandr 2>&1 > /dev/null; then
   function twoscreen() {
     xrandr --dpi 276 --output ${1:-DP-1} --scale 2x2 --right-of eDP-1
@@ -68,6 +70,10 @@ fi
 [ -f /usr/share/fzf/shell/key-bindings.zsh ] && source /usr/share/fzf/shell/key-bindings.zsh
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
+if which devboard 2>&1 > /dev/null; then
+  eval "$(_DEVBOARD_COMPLETE=source_zsh devboard)"
+fi
+
 [ -d ~/flutter/bin ] && [[ ":$PATH:" != *":$HOME/flutter/bin:"* ]] && export PATH=":$HOME/flutter/bin:$PATH"
 
 alias jl='jq . -C | less -R'
@@ -75,7 +81,9 @@ alias jl='jq . -C | less -R'
 export EDITOR=vim
 
 function dlogcut() {
-  cat <(head -n1 $1) <(grep 'PERIODIC' $1) | csvcut -c $2
+  cat <(head -n1 $1) <(grep -a 'PERIODIC' $1) |
+    tr -d '\000' |
+    csvcut -c $2
 }
 
 function csvheader() {

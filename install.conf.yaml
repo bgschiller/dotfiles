@@ -10,4 +10,8 @@
     ~/.gitconfig: gitconfig
     ~/.config/jrnl/jrnl.yaml:
         create: true
+    ~/bin/s3_upload.py:
+        create: true
+    ~/bin/clipbox-screenshot.sh:
+        create: true
 - shell: []
