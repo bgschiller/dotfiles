@@ -42,4 +42,4 @@ if __name__ == '__main__':
                 'ContentType': mtype,
             })
     url = url_prefix + obj_key
-    sys.stdout.write(url)
+    print(url)
