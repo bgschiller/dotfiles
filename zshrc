@@ -13,7 +13,7 @@ ZSH_THEME="robbyrussell"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git)
+plugins=(git pass)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -97,3 +97,10 @@ export AUTOMATIONBUILD=/home/brian/terumo/CommonCode/CommonEmbedded/DockerBuild/
 if [ -f ~/.sensitive-zshrc ]; then
   source ~/.sensitive-zshrc
 fi
+
+# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
+export PATH="$PATH:$HOME/.rvm/bin"
+
+eval "$(direnv hook zsh)"
+
+alias vim="nvim"

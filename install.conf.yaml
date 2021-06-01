@@ -8,6 +8,7 @@
         path: espanso.yml
         create: true
     ~/.gitconfig: gitconfig
+    ~/.gitignore_global: gitignore_global
     ~/.config/jrnl/jrnl.yaml:
         create: true
     ~/bin/s3_upload.py:
