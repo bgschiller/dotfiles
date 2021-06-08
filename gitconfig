@@ -11,7 +11,7 @@
         git submodule update --recursive && \
         git status -s | cut -f2 -d\" \" | xargs rm -rf'"
 [core]
-    excludesfile = /Users/brian/.gitignore_global
+    excludesfile = ~/.gitignore_global
 [pull]
     rebase = true
 [filter "lfs"]
@@ -19,3 +19,5 @@
     smudge = git-lfs smudge -- %f
     process = git-lfs filter-process
     required = true
+[init]
+    defaultBranch = main
