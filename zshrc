@@ -65,9 +65,12 @@ function csvheader() {
   head -n1 $1 | tr ',' '\n'
 }
 
-if [ -f ~/.sensitive-zshrc ]; then
-  source ~/.sensitive-zshrc
+if [ -f ~/.zshrc-sensitive ]; then
+  source ~/.zshrc-sensitive
 fi
+
+export CLIPBOX_AWS_S3_BUCKET=brianschiller-clipbox
+export CLIPBOX_URL_PREFIX=https://clip.brianschiller.com/
 
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
