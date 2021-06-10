@@ -8,7 +8,11 @@ import string
 import datetime
 import mimetypes
 
-s3 = boto3.client('s3')
+s3 = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv('CLIPBOX_AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('CLIPBOX_AWS_SECRET_KEY')
+    )
 
 def rewrite_name(fname):
     """
@@ -28,8 +32,8 @@ def random_key(filename):
     date = str(datetime.datetime.now())[:10]
     return rewrite_name('{}-{}-{}'.format(prefix, date, tail))
 
-bucket_name = os.getenv('AWS_S3_BUCKET')
-url_prefix = os.getenv('URL_PREFIX')
+bucket_name = os.getenv('CLIPBOX_AWS_S3_BUCKET')
+url_prefix = os.getenv('CLIPBOX_URL_PREFIX')
 
 if __name__ == '__main__':
     file_name = sys.argv[1]

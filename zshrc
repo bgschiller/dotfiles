@@ -13,7 +13,7 @@ ZSH_THEME="robbyrussell"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git pass)
+plugins=(git pass command-not-found)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -44,15 +44,6 @@ export NVM_DIR="$HOME/.nvm"
 
 [[ -d /usr/local/go/bin ]] && [[ ":$PATH:" != *":/usr/local/go/bin:"* ]] && export PATH="$PATH:/usr/local/go/bin"
 
-if which xrandr 2>&1 > /dev/null; then
-  function twoscreen() {
-    xrandr --dpi 276 --output ${1:-DP-1} --scale 2x2 --right-of eDP-1
-    killall polybar 2> /dev/null
-    sleep 2
-    i3 restart > /dev/null
-  }
-fi
-
 if which xclip 2>&1 > /dev/null; then
   function pbcopy() {
     xclip -i -selection clipboard
@@ -62,37 +53,17 @@ if which xclip 2>&1 > /dev/null; then
   }
 fi
 
-if which picocom 2>&1 > /dev/null; then
-  alias pico="sudo picocom -b 115200 /dev/ttyUSB0"
-fi
-
 [ -f /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh ] && source /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh
 [ -f /usr/share/fzf/shell/key-bindings.zsh ] && source /usr/share/fzf/shell/key-bindings.zsh
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-if which devboard 2>&1 > /dev/null; then
-  eval "$(_DEVBOARD_COMPLETE=source_zsh devboard)"
-fi
-
-[ -d ~/flutter/bin ] && [[ ":$PATH:" != *":$HOME/flutter/bin:"* ]] && export PATH=":$HOME/flutter/bin:$PATH"
 
 alias jl='jq . -C | less -R'
 
 export EDITOR=vim
 
-function dlogcut() {
-  cat <(head -n1 $1) <(grep -a 'PERIODIC' $1) |
-    tr -d '\000' |
-    csvcut -c $2
-}
-
 function csvheader() {
   head -n1 $1 | tr ',' '\n'
 }
-
-alias terumoVPN='sudo openconnect  --protocol=gp usbgw.terumobct.com'
-
-export AUTOMATIONBUILD=/home/brian/terumo/CommonCode/CommonEmbedded/DockerBuild/Automation
 
 if [ -f ~/.sensitive-zshrc ]; then
   source ~/.sensitive-zshrc
