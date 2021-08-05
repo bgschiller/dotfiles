@@ -4,9 +4,9 @@
 - clean: ['~']
 - link:
     ~/.zshrc: zshrc
-    ~/.config/espanso/user/config.yml:
+    ~/.config/espanso/default.yml:
         path: espanso.yml
-        create: true
+        force: true
     ~/.gitconfig: gitconfig
     ~/.gitignore_global: gitignore_global
     ~/.config/jrnl/jrnl.yaml:

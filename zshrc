@@ -35,12 +35,17 @@ export NVM_DIR="$HOME/.nvm"
 # add /usr/local/sbin to path if not present
 [[ ":$PATH:" != *":/usr/local/sbin:"* ]] && export PATH="/usr/local/sbin:$PATH"
 
+[[ ":$PATH:" != *":$HOME/flutter/bin:"* ]] && [[ -d "$HOME/flutter/bin" ]] && export PATH="$HOME/flutter/bin:$PATH"
+[[ ":$PATH:" != *":$HOME/android-studio/bin:"* ]] && [[ -d "$HOME/android-studio/bin" ]] && export PATH="$HOME/android-studio/bin:$PATH"
+
 # add yarn and yarn modules to path if not present
 [[ ":$PATH:" != *":$HOME/.yarn/bin:"* ]] && export PATH="$HOME/.yarn/bin:$PATH:$HOME/.config/yarn/global/node_modules/.bin/"
 
 [[ ":$PATH:" != *":$HOME/.composer/vendor/bin:"* ]] && export PATH=":$HOME/.composer/vendor/bin:$PATH"
 
 [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && export PATH=":$HOME/.cargo/bin:$PATH"
+
+[[ -d /usr/share/elasticsearch/bin/ ]] && [[ ":$PATH:" != *":/usr/share/elasticsearch/bin/:"* ]] && export PATH=":/usr/share/elasticsearch/bin/:$PATH"
 
 [[ -d /usr/local/go/bin ]] && [[ ":$PATH:" != *":/usr/local/go/bin:"* ]] && export PATH="$PATH:/usr/local/go/bin"
 
@@ -49,12 +54,13 @@ if which xclip 2>&1 > /dev/null; then
     xclip -i -selection clipboard
   }
   function pbpaste() {
-    xclip -o
+    xclip -o -selection clipboard
   }
 fi
 
 [ -f /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh ] && source /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh
 [ -f /usr/share/fzf/shell/key-bindings.zsh ] && source /usr/share/fzf/shell/key-bindings.zsh
+[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 alias jl='jq . -C | less -R'
@@ -74,6 +80,7 @@ export CLIPBOX_URL_PREFIX=https://clip.brianschiller.com/
 
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
 
 eval "$(direnv hook zsh)"
 

@@ -8,6 +8,10 @@
 # it gets replaced by the "replace" string.
 matches:
   # Simple text replacement
-  - trigger: ":emdash"
+  - trigger: ":mdash"
     replace: "—"
+  - trigger: ":eshrug"
+    replace: "🤷"
+  - trigger: ":shrug"
+    replace: "¯\\_(ツ)_/¯"
 
