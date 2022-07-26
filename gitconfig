@@ -1,6 +1,8 @@
 [user]
     email = bgschiller@gmail.com
     name = Brian Schiller
+[includeIf "gitdir:~/work/"]
+    path = .gitconfig-work
 [alias]
     pu = !git push -u origin $(git rev-parse --abbrev-ref HEAD)
     recent = "!f() { git for-each-ref --count=${1:-10} --sort=-committerdate refs/heads/ --format='%(refname:short)'; }; f"

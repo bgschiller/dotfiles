@@ -2,7 +2,7 @@
 
 # Required parameters:
 # @raycast.schemaVersion 1
-# @raycast.title Clipbox selection
+# @raycast.title Clipbox annotate
 # @raycast.mode silent
 
 # Optional parameters:
@@ -10,12 +10,13 @@
 # @raycast.packageName Clipbox
 
 # Documentation:
-# @raycast.description capture a selection of the screen, uploading to s3 and putting the url on your clipboard
+# @raycast.description capture a selection of the screen, annotate in preview, upload to s3, and put the url on your clipboard
 # @raycast.author Brian Schiller
 # @raycast.authorURL https://brianschiller.com
 set -euo pipefail
 
 screencapture -i ~/.clipbox/capture.png
+open -W ~/.clipbox/capture.png
 # ignore illegal byte sequences from /dev/urandom
 export LC_ALL=C
 UPLOAD_NAME=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w 7 | head -n 1)-$(date -I date).png

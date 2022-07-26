@@ -1,19 +1,20 @@
 - defaults:
     link:
       relink: true
-- clean: ['~']
+- clean: ["~"]
 - link:
     ~/.zshrc: zshrc
     ~/.config/espanso/default.yml:
-        path: espanso.yml
-        create: true
-        force: true
+      path: espanso.yml
+      create: true
+      force: true
     ~/.gitconfig: gitconfig
     ~/.gitignore_global: gitignore_global
+    ~/.gitconfig-work: gitconfig-work
     ~/.config/jrnl/jrnl.yaml:
-        create: true
+      create: true
     ~/bin/s3_upload.py:
-        create: true
+      create: true
     ~/bin/clipbox-screenshot.sh:
-        create: true
+      create: true
 - shell: []
