@@ -13,7 +13,7 @@ ZSH_THEME="robbyrussell"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git pass command-not-found)
+plugins=(git pass command-not-found) 
 
 source $ZSH/oh-my-zsh.sh
 
@@ -37,6 +37,8 @@ export NVM_DIR="$HOME/.nvm"
 
 [[ ":$PATH:" != *":$HOME/flutter/bin:"* ]] && [[ -d "$HOME/flutter/bin" ]] && export PATH="$HOME/flutter/bin:$PATH"
 [[ ":$PATH:" != *":$HOME/android-studio/bin:"* ]] && [[ -d "$HOME/android-studio/bin" ]] && export PATH="$HOME/android-studio/bin:$PATH"
+
+[[ ":$PATH:" != *":/Applications/CMake.app/Contents/bin:"* ]] && [[ -d "/Applications/CMake.app/Contents/bin" ]] && export PATH="/Applications/CMake.app/Contents/bin:$PATH"
 
 # add yarn and yarn modules to path if not present
 [[ ":$PATH:" != *":$HOME/.yarn/bin:"* ]] && export PATH="$HOME/.yarn/bin:$PATH:$HOME/.config/yarn/global/node_modules/.bin/"
@@ -84,4 +86,93 @@ export PATH="$PATH:$HOME/.rvm/bin"
 
 eval "$(direnv hook zsh)"
 
-alias vim="nvim"
+
+function __choose_node_package_manager__() {
+  if [ -f "package-lock.json" ]; then
+    npm $*
+  elif [ -f "yarn.lock" ]; then
+    yarn $*
+  else
+    pnpm $*
+  fi
+}
+alias n="__choose_node_package_manager__"
+
+function clipbox() {
+  local old_LC_ALL=$LC_ALL
+  export LC_ALL=C
+  local UPLOAD_NAME=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w 7 | head -n 1)-$(date -Idate).${1#*.}
+
+  export LC_ALL=$old_LC_ALL
+  local URL="https://clip.brianschiller.com/$UPLOAD_NAME"
+  echo -n  $URL | pbcopy
+  echo "Copied '$URL' to clipboard"
+  aws --profile clipbox-writer s3 cp $1 s3://brianschiller-clipbox/$UPLOAD_NAME --metadata-directive REPLACE --content-type $(file --mime-type $1 | cut -f2 -d:) --acl public-read
+}
+
+
+# pnpm
+export PNPM_HOME="/Users/brian/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+export CLIPBOX_TOKEN="clipbox_mEhgJPe6acqvbgLwR0j76fbLlVas"
+export CLIPBOX_URL="http://localhost:3000"
+
+# add $HOME/bin to path if not present
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+
+
+export CLIPBOX_TOKEN="clipbox_mEhgJPe6acqvbgLwR0j76fbLlVas"
+export CLIPBOX_URL="http://localhost:3000"
+
+
+# add $HOME/bin to path if not present
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+
+
+export CLIPBOX_TOKEN="clipbox_t8ofSZoWWYX1V8iWfErD7EZeSgm01IVlYy8A1Uh7"
+export CLIPBOX_URL="https://clip.sandbox.grammarlyaws.com"
+
+
+# add $HOME/bin to path if not present
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+
+
+export CLIPBOX_TOKEN="clipbox_mEhgJPe6acqvbgLwR0j76fbLlVas"
+export CLIPBOX_URL="http://localhost:3000"
+
+
+# add $HOME/bin to path if not present
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+
+
+export CLIPBOX_TOKEN="clipbox_t8ofSZoWWYX1V8iWfErD7EZeSgm01IVlYy8A1Uh7"
+export CLIPBOX_URL="https://clip.sandbox.grammarlyaws.com"
+
+
+# add $HOME/bin to path if not present
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+
+
+export CLIPBOX_TOKEN="clipbox_t8ofSZoWWYX1V8iWfErD7EZeSgm01IVlYy8A1Uh7"
+export CLIPBOX_URL="https://clip.sandbox.grammarlyaws.com"
+
+
+# add $HOME/bin to path if not present
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+
+export JAVA_HOME=$(/usr/libexec/java_home -v17)
+
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+alias python=/opt/homebrew/bin/python3
+
+#eval "$(starship init zsh)"
+
+eval "$(mcfly init zsh)"
+

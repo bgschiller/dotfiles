@@ -19,7 +19,7 @@ FILENAME=$(osascript clip-text-or-file.applescript)
 if [[ $FILENAME == ~/.clipbox/clip.txt ]]; then
   # ignore illegal byte sequences from /dev/urandom
   export LC_ALL=C
-  UPLOAD_NAME=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w 7 | head -n 1)-$(date -I date).txt
+  UPLOAD_NAME=$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w 7 | head -n 1)-$(date -Idate).txt
 else
   UPLOAD_NAME=$(basename $FILENAME)
 fi

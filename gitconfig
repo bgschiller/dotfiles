@@ -4,18 +4,22 @@
 [includeIf "gitdir:~/work/"]
     path = .gitconfig-work
 [alias]
-    pu = !git push -u origin $(git rev-parse --abbrev-ref HEAD)
     recent = "!f() { git for-each-ref --count=${1:-10} --sort=-committerdate refs/heads/ --format='%(refname:short)'; }; f"
     cor = !git recent 25 | fzf --reverse --nth=1 --preview 'git log --patch --color {1}...{1}~5' | awk '{print $1}' | xargs git checkout
     burn-it-all = "!bash -c ' \
+        git reset HEAD > /dev/null && \
+        ((git merge --abort 2> /dev/null; git rebase --abort 2> /dev/null) || true) && \
         git restore --staged $(git rev-parse --show-toplevel) && \
         git restore $(git rev-parse --show-toplevel) && \
         git submodule update --recursive && \
         git status -s | cut -f2 -d\" \" | xargs rm -rf'"
 [core]
     excludesfile = ~/.gitignore_global
+    pager = delta
 [pull]
     rebase = true
+[push]
+  autoSetupRemote = true
 [filter "lfs"]
     clean = git-lfs clean -- %f
     smudge = git-lfs smudge -- %f
@@ -23,3 +27,24 @@
     required = true
 [init]
     defaultBranch = main
+[merge]
+    conflictStyle = zdiff3
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true    # use n and N to move between diff sections
+    light = false      # set to true if you're in a terminal w/ a light background color (e.g. the default macOS terminal)
+
+[diff]
+    colorMoved = default
+    tool = difftastic
+    external = difft
+[difftool]
+    prompt = false
+
+[difftool "difftastic"]
+    cmd = difft "$LOCAL" "$REMOTE"
+[pager]
+    difftool = true
+
