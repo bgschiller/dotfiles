@@ -1,64 +1,78 @@
 [
-    /**
-    * Panels
-    **/
-    {
-        "key": "cmd+k cmd+e",
-        "command": "workbench.view.explorer"
-    },
-    {
-        "key": "cmd+k cmd+g",
-        "command": "workbench.view.scm"
-    },
-    {
-        "key": "cmd+k cmd+d",
-        "command": "workbench.view.debug"
-    },
-    {
-        "key": "cmd+k cmd+x",
-        "command": "workbench.extensions.action.showEnabledExtensions"
-    },
-    {
-        "key": "cmd+b",
-        "command": "workbench.action.toggleSidebarVisibility"
-    },
-    {
-        "key": "cmd+e",
-        "command": "workbench.action.focusActiveEditorGroup"
-    },
-    {
-        "key": "cmd+t",
-        "command": "workbench.action.terminal.toggleTerminal"
-    },
+  /**
+   * Panels
+   **/
+  {
+    "key": "cmd+k cmd+e",
+    "command": "workbench.view.explorer"
+  },
+  {
+    "key": "cmd+k cmd+g",
+    "command": "workbench.view.scm"
+  },
+  {
+    "key": "cmd+k cmd+d",
+    "command": "workbench.view.debug"
+  },
+  {
+    "key": "cmd+k cmd+x",
+    "command": "workbench.extensions.action.showEnabledExtensions"
+  },
+  {
+    "key": "cmd+k cmd+c",
+    "command": "workbench.action.chat.openInSidebar",
+    "when": "chatIsEnabled"
+  },
+  {
+    "key": "cmd+b",
+    "command": "workbench.action.toggleSidebarVisibility"
+  },
+  {
+    "key": "cmd+e",
+    "command": "workbench.action.focusActiveEditorGroup"
+  },
+  {
+    "key": "cmd+t",
+    "command": "workbench.action.terminal.toggleTerminal"
+  },
 
-    /**
-    * editing
-    */
-    {
-        "key": "ctrl+j",
-        "command": "editor.action.joinLines",
-        "when": "editorTextFocus"
-    },
+  /**
+   * editing
+   */
+  {
+    "key": "ctrl+j",
+    "command": "editor.action.joinLines",
+    "when": "editorTextFocus"
+  },
 
-    /**
-    * Toggle Font Size
-    **/
-    {
-        "key": "cmd+k cmd+k",
-        "command": "toggle",
-        "when": "editorTextFocus",
-        "args":   {
-            "id": "fontSize",
-            "value": [
-                {
-                    "editor.fontSize": 15,
-                    "editor.lineHeight": 24
-                },
-                {
-                    "editor.fontSize": 12,
-                    "editor.lineHeight": 0
-                }
-            ]
+  /**
+   * git file blame
+   */
+  {
+    "key": "ctrl+b",
+    "command": "gitlens.toggleFileBlame",
+    "when": "editorTextFocus"
+  },
+
+  /**
+   * Toggle Font Size
+   **/
+  {
+    "key": "cmd+k cmd+k",
+    "command": "toggle",
+    "when": "editorTextFocus",
+    "args": {
+      "id": "fontSize",
+      "value": [
+        {
+          "editor.fontSize": 15,
+          "editor.lineHeight": 24
+        },
+        {
+          "editor.fontSize": 12,
+          "editor.lineHeight": 0
         }
-    },
+      ]
+    }
+  }
 ]

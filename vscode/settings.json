@@ -1,22 +1,59 @@
 {
   "workbench.editor.enablePreview": false,
-  "editor.multiCursorModifier": "ctrlCmd",
+  "workbench.activityBar.location": "hidden",
   "files.trimTrailingWhitespace": true,
   "window.nativeFullScreen": true,
+  "window.zoomLevel": 1,
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
   "workbench.sideBar.location": "right",
   "editor.minimap.enabled": false,
-  "editor.matchBrackets": "never",
   "workbench.tips.enabled": false,
   "editor.lightbulb.enabled": "off",
-  "editor.fontSize": 15,
-  "editor.lineHeight": 24,
+  "editor.fontSize": 12,
+  "editor.lineHeight": 0,
   "editor.suggestFontSize": 16,
   "terminal.integrated.fontSize": 14,
-  "editor.fontFamily": "FuraMono Nerd Font Mono, Monaco, monospace",
+  "editor.fontFamily": "Monaspace Argon Var, FuraMono Nerd Font Mono, Monaco, monospace",
   "editor.fontLigatures": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "workbench.colorTheme": "Ace Palenight"
+  "gitlens.hovers.currentLine.over": "line",
+  "gitlens.codeLens.enabled": false,
+  "gitlens.statusBar.enabled": false,
+  "gitlens.hovers.enabled": false,
+  "gitlens.currentLine.enabled": false,
+  "gitlens.blame.format": "${message|30} ${id} ${agoOrDateShort|4-}",
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": true,
+    "scminput": false
+  },
+  "workbench.colorTheme": "Catppuccin Macchiato",
+  "editor.autoSurround": "never",
+  "editor.autoClosingBrackets": "never",
+  "editor.autoClosingComments": "never",
+  "html.autoClosingTags": false,
+  "javascript.autoClosingTags": false,
+  "typescript.autoClosingTags": false,
+  "editor.autoClosingQuotes": "never",
+  "editor.autoClosingDelete": "never",
+  "editor.autoClosingOvertype": "never",
+  "gitlens.launchpad.indicator.enabled": false,
+  "github.copilot.editor.enableAutoCompletions": true,
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "rewrap.wrappingColumn": 100,
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // we try to make semantic highlighting look good
+  "editor.semanticHighlighting.enabled": true,
+  // prevent VSCode from modifying the terminal colors
+  "terminal.integrated.minimumContrastRatio": 1,
+  // make the window's titlebar use the workbench colors
+  "window.titleBarStyle": "custom",
+  "typescript.tsserver.log": "verbose"
 }

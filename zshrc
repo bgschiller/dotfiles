@@ -18,11 +18,6 @@ plugins=(git pass command-not-found)
 source $ZSH/oh-my-zsh.sh
 
 
-# add nvm to path, set nvm env vars
-export NVM_DIR="$HOME/.nvm"
-[[ -s "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"
-[[ -r "$NVM_DIR/bash_completion" ]] && . "$NVM_DIR/bash_completion"
-
 # add $HOME/bin to path if not present
 [[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
 
@@ -67,7 +62,7 @@ fi
 
 alias jl='jq . -C | less -R'
 
-export EDITOR=vim
+export EDITOR=nvim
 
 function csvheader() {
   head -n1 $1 | tr ',' '\n'
@@ -79,6 +74,8 @@ fi
 
 export CLIPBOX_AWS_S3_BUCKET=brianschiller-clipbox
 export CLIPBOX_URL_PREFIX=https://clip.brianschiller.com/
+
+export N_PREFIX=$HOME/.n
 
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
@@ -96,7 +93,7 @@ function __choose_node_package_manager__() {
     pnpm $*
   fi
 }
-alias n="__choose_node_package_manager__"
+alias pm="__choose_node_package_manager__"
 
 function clipbox() {
   local old_LC_ALL=$LC_ALL
@@ -119,56 +116,17 @@ case ":$PATH:" in
 esac
 # pnpm end
 
-export CLIPBOX_TOKEN="clipbox_mEhgJPe6acqvbgLwR0j76fbLlVas"
-export CLIPBOX_URL="http://localhost:3000"
-
-# add $HOME/bin to path if not present
-[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
-
-
-export CLIPBOX_TOKEN="clipbox_mEhgJPe6acqvbgLwR0j76fbLlVas"
-export CLIPBOX_URL="http://localhost:3000"
-
-
-# add $HOME/bin to path if not present
-[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
-
-
-export CLIPBOX_TOKEN="clipbox_t8ofSZoWWYX1V8iWfErD7EZeSgm01IVlYy8A1Uh7"
-export CLIPBOX_URL="https://clip.sandbox.grammarlyaws.com"
-
-
-# add $HOME/bin to path if not present
-[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
-
-
-export CLIPBOX_TOKEN="clipbox_mEhgJPe6acqvbgLwR0j76fbLlVas"
-export CLIPBOX_URL="http://localhost:3000"
-
-
-# add $HOME/bin to path if not present
-[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
-
-
-export CLIPBOX_TOKEN="clipbox_t8ofSZoWWYX1V8iWfErD7EZeSgm01IVlYy8A1Uh7"
-export CLIPBOX_URL="https://clip.sandbox.grammarlyaws.com"
-
-
-# add $HOME/bin to path if not present
-[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
-
-
-export CLIPBOX_TOKEN="clipbox_t8ofSZoWWYX1V8iWfErD7EZeSgm01IVlYy8A1Uh7"
-export CLIPBOX_URL="https://clip.sandbox.grammarlyaws.com"
-
-
-# add $HOME/bin to path if not present
-[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
-
 export JAVA_HOME=$(/usr/libexec/java_home -v17)
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
+
+# add $HOME/bin to path if not present
+[[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
+#
+
+export PATH="$N_PREFIX/bin:$PATH"
+
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
 alias python=/opt/homebrew/bin/python3
 
