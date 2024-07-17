@@ -7,6 +7,7 @@ return {
       function()
         require("smart-splits").move_cursor_left()
       end,
+      mode = { "i", "n", "v" },
       desc = "Move to left window",
     },
     {
@@ -14,6 +15,7 @@ return {
       function()
         require("smart-splits").move_cursor_down()
       end,
+      mode = { "i", "n", "v" },
       desc = "Move to below window",
     },
     {
@@ -28,6 +30,7 @@ return {
       function()
         require("smart-splits").move_cursor_right()
       end,
+      mode = { "i", "n", "v" },
       desc = "Move to right window",
     },
     {
@@ -35,7 +38,9 @@ return {
       function()
         require("smart-splits").move_cursor_previous()
       end,
+      mode = { "i", "n", "v" },
       desc = "Move cursor to previous window",
     },
   },
+  lazy = false,
 }
