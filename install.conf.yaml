@@ -3,11 +3,9 @@
       relink: true
 - clean: ["~"]
 - link:
-    ~/.zshrc: zshrc
-    ~/.config/nvim: nvim
-    ~/.config/kitty/kitty.conf:
-      path: kitty.conf
-      create: true
+    ~/.zshrc:
+    ~/.config/nvim:
+    ~/.config/kitty:
     ~/.clang-format: clang-format
     ~/.config/espanso/default.yml:
       path: espanso.yml
