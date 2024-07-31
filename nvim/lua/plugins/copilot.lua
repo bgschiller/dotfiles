@@ -6,11 +6,6 @@ return {
       keys = {
         toggle_auto_trigger = "<leader>uc",
       },
-      suggestion = {
-        keymap = {
-          accept = "<Tab>",
-        },
-      },
     },
   },
 }

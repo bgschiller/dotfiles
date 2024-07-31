@@ -3,6 +3,8 @@
       relink: true
 - clean: ["~"]
 - link:
+    ~/AppData/Local/nvim:
+      if: "ver"
     ~/.zshrc:
     ~/.config/nvim:
     ~/.config/kitty:
