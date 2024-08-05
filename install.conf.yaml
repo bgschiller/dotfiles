@@ -1,41 +1,42 @@
 - defaults:
     link:
       relink: true
+      create: true
+      force: true
+      if: "uname" # default to only add links for mac and linux
 - clean: ["~"]
 - link:
-    ~/AppData/Local/nvim:
-      if: "ver"
     ~/.zshrc:
     ~/.config/nvim:
+    "C:\\Users\\BrianSchiller\\AppData\\Local\\nvim":
+      if: "ver" # 'ver' is the windows equivalent of uname
     ~/.config/kitty:
     ~/.clang-format: clang-format
     ~/.config/espanso/default.yml:
       path: espanso.yml
-      create: true
-      force: true
-    ~/.gitconfig: gitconfig
-    ~/.gitignore_global: gitignore_global
-    ~/.gitconfig-work: gitconfig-work
+    ~/.gitconfig:
+      if: # empty condition means use this path for all platforms
+    ~/.gitignore_global:
+      if:
+    ~/.gitconfig-work:
+      if:
     ~/.config/jrnl/jrnl.yaml:
-      create: true
     ~/bin/s3_upload.py:
-      create: true
     ~/bin/clipbox-screenshot.sh:
-      create: true
     ~/.vscode/settings.json:
       path: vscode/settings.json
-      create: true
-      force: true
     ~/.vscode/keybindings.json:
       path: vscode/keybindings.json
-      create: true
-      force: true
     "~/Library/Application Support/Code/User/settings.json":
       path: vscode/settings.json
-      create: true
-      force: true
     "~/Library/Application Support/Code/User/keybindings.json":
       path: vscode/keybindings.json
-      create: true
-      force: true
+    ~\AppData\Roaming\Code\User\keybindings.json:
+      path: vscode/keybindings.json
+      if: "ver"
+    ~/AppData/Roaming/Code/User/settings.json:
+      path: vscode/settings.json
+      if: "ver"
+    ~/.wezterm.lua:
+      if:
 - shell: []
