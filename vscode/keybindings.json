@@ -37,21 +37,48 @@
   },
 
   /**
+   * Pane Navigation
+   */
+  {
+    "key": "ctrl+h",
+    "command": "workbench.action.navigateLeft"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.navigateRight"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.navigateUp"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.action.navigateDown"
+  },
+
+  /**
    * editing
    */
   {
     "key": "ctrl+j",
     "command": "editor.action.joinLines",
-    "when": "editorTextFocus"
+    "when": "editorTextFocus && vim.mode != 'Normal' && vim.mode != 'Insert'"
   },
 
   /**
-   * git file blame
+   * vim resets
    */
   {
     "key": "ctrl+b",
-    "command": "gitlens.toggleFileBlame",
-    "when": "editorTextFocus"
+    "command": "cursorPageUp"
+  },
+  { "key": "ctrl+d", "command": "cursorPageDown" },
+  { "key": "ctrl+o", "command": "workbench.action.navigateBack" },
+  { "key": "ctrl+i", "command": "workbench.action.navigateForward" },
+  {
+    "key": "q",
+    "when": "sideBarFocus && !inputFocus",
+    "command": "workbench.action.closeSidebar"
   },
 
   /**
@@ -59,19 +86,13 @@
    **/
   {
     "key": "cmd+k cmd+k",
-    "command": "toggle",
     "when": "editorTextFocus",
+    "command": "toggle",
     "args": {
-      "id": "fontSize",
+      "id": "line-numbering",
       "value": [
-        {
-          "editor.fontSize": 15,
-          "editor.lineHeight": 24
-        },
-        {
-          "editor.fontSize": 12,
-          "editor.lineHeight": 0
-        }
+        { "editor.lineNumbers": "on" },
+        { "editor.lineNumbers": "relative" }
       ]
     }
   }

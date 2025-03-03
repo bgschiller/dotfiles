@@ -1,7 +1,7 @@
 [user]
     email = bgschiller@gmail.com
     name = Brian Schiller
-[includeIf "gitdir:~/work/"]
+[includeIf "gitdir/i:/Users/brian/work/**"]
     path = .gitconfig-work
 [alias]
     recent = "!f() { git for-each-ref --count=${1:-10} --sort=-committerdate refs/heads/ --format='%(refname:short)'; }; f"
@@ -16,8 +16,13 @@
 [core]
     excludesfile = ~/.gitignore_global
     pager = delta
+    ui = auto
 [pull]
     rebase = true
+[branch]
+    sort = -committerdate
+[commit]
+    verbose = true
 [push]
   autoSetupRemote = true
 [filter "lfs"]
@@ -38,6 +43,8 @@
 
 [diff]
     colorMoved = default
+    mnemonicPrefix = true
+    renames = true
     tool = difftastic
     external = difft
 [difftool]
@@ -50,3 +57,4 @@
 
 [rerere]
 	enabled = true
+  autoupdate = true

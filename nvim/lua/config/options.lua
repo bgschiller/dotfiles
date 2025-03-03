@@ -5,6 +5,9 @@
 -- Avoid synchronizing the system clipboard with the vim clipboard
 vim.opt.clipboard = ""
 
+-- Reveal hidden char in markdown
+vim.opt.conceallevel = 0
+
 if vim.loop.os_uname().sysname == "Windows_NT" then
   vim.opt.shell = "powershell"
   vim.opt.shellcmdflag =

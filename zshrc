@@ -124,7 +124,7 @@ esac
 export PATH="$N_PREFIX/bin:$PATH"
 
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
-alias python=/opt/homebrew/bin/python3
+eval "$(pyenv init -)"
 
 #eval "$(starship init zsh)"
 

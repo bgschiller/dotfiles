@@ -10,11 +10,11 @@
   "editor.minimap.enabled": false,
   "workbench.tips.enabled": false,
   "editor.lightbulb.enabled": "off",
-  "editor.fontSize": 12,
+  "editor.fontSize": 13,
   "editor.lineHeight": 0,
   "editor.suggestFontSize": 16,
   "terminal.integrated.fontSize": 14,
-  "editor.fontFamily": "Monaspace Argon Var, FuraMono Nerd Font Mono, Monaco, monospace",
+  "editor.fontFamily": "FuraMono Nerd Font mono, Monaco, monospace",
   "editor.fontLigatures": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
@@ -30,7 +30,7 @@
     "markdown": true,
     "scminput": false
   },
-  "workbench.colorTheme": "Catppuccin Macchiato",
+  "workbench.colorTheme": "Catppuccin Mocha",
   "editor.autoSurround": "never",
   "editor.autoClosingBrackets": "never",
   "editor.autoClosingComments": "never",
@@ -55,5 +55,59 @@
   "terminal.integrated.minimumContrastRatio": 1,
   // make the window's titlebar use the workbench colors
   "window.titleBarStyle": "custom",
-  "typescript.tsserver.log": "verbose"
+  "typescript.tsserver.log": "off",
+  "chat.editing.alwaysSaveWithGeneratedChanges": true,
+  "extensions.experimental.affinity": {
+    "asvetliakov.vscode-neovim": 1
+  },
+  "vim.leader": "<space>",
+  "vim.easymotion": true,
+  "editor.lineNumbers": "on",
+  "vim.disableExtension": false,
+  "vim.normalModeKeyBindingsNonRecursive": [
+    // Use s to enter easymotion mode, not <leader><leader>s
+    { "before": ["s"], "after": ["<leader>", "<leader>", "s"] }
+  ],
+  "vim.normalModeKeyBindings": [
+    {
+      "before": ["K"],
+      "commands": ["editor.action.showHover"]
+    },
+    {
+      "before": ["<leader>", "<leader>"],
+      "commands": ["workbench.actions.quickOpen"]
+    },
+    {
+      "before": ["<leader>", "e"],
+      "commands": ["workbench.files.action.focusFilesExplorer"]
+    },
+    {
+      "before": ["<leader>", "/"],
+      "commands": ["workbench.action.findInFiles"]
+    },
+    {
+      "before": ["g", "r"],
+      "commands": ["editor.action.goToReferences"]
+    },
+    {
+      "before": ["g", "y"],
+      "commands": ["editor.action.goToTypeDefinition"]
+    },
+    {
+      "before": ["<leader>", "c", "r"],
+      "commands": ["editor.action.rename"]
+    },
+    {
+      "before": ["<leader>", "c", "a"],
+      "commands": ["editor.action.quickFix"]
+    },
+    {
+      "before": ["[", "e"],
+      "commands": ["editor.action.marker.next"]
+    },
+    {
+      "before": ["]", "e"],
+      "commands": ["editor.action.marker.prev"]
+    }
+  ]
 }
