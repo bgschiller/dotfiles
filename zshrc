@@ -1,3 +1,5 @@
+# Add deno completions to search path
+if [[ ":$FPATH:" != *":/Users/brian/.zsh/completions:"* ]]; then export FPATH="/Users/brian/.zsh/completions:$FPATH"; fi
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
@@ -130,3 +132,4 @@ eval "$(pyenv init -)"
 
 eval "$(mcfly init zsh)"
 
+. "~/.deno/env"

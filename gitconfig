@@ -1,7 +1,7 @@
 [user]
     email = bgschiller@gmail.com
     name = Brian Schiller
-[includeIf "gitdir/i:/Users/brian/work/**"]
+[includeIf "gitdir/i:~/work/**"]
     path = .gitconfig-work
 [alias]
     recent = "!f() { git for-each-ref --count=${1:-10} --sort=-committerdate refs/heads/ --format='%(refname:short)'; }; f"

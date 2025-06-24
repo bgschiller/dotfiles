@@ -7,3 +7,7 @@ vim.keymap.set("n", "<leader>uc", function()
 end)
 
 vim.keymap.set("n", "\\", "<C-w>", { desc = "Show Window menu", remap = true })
+
+vim.keymap.set({ "n", "v", "i" }, "<C-s>", function()
+  vim.cmd("write")
+end, { desc = "Save file or toggle markdown preview" })

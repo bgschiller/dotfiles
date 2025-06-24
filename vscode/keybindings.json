@@ -95,5 +95,21 @@
         { "editor.lineNumbers": "relative" }
       ]
     }
-  }
+  },
+  {
+    "key": "cmd+k cmd+w",
+    "command": "workbench.action.closeAllEditors"
+  },
+  {
+    "key": "cmd+r cmd+w",
+    "command": "-workbench.action.closeAllEditors"
+},
+{
+    "key": "shift+enter",
+    "command": "workbench.action.terminal.sendSequence",
+    "args": {
+        "text": "\\\r\n"
+    },
+    "when": "terminalFocus"
+}
 ]
