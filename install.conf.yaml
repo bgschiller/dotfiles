@@ -10,6 +10,9 @@
     ~/.config/nvim:
     "C:\\Users\\BrianSchiller\\AppData\\Local\\nvim":
       if: "ver" # 'ver' is the windows equivalent of uname
+    "C:\\Users\\BrianSchiller\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1":
+      path: Microsoft.PowerShell_profile.ps1
+      if: "ver"
     ~/.config/kitty:
     ~/.clang-format: clang-format
     ~/.config/espanso/default.yml:
@@ -36,6 +39,12 @@
       if: "ver"
     ~/AppData/Roaming/Code/User/settings.json:
       path: vscode/settings.json
+      if: "ver"
+    ~/AppData/Roaming/Cursor/User/settings.json:
+      path: vscode/settings.json
+      if: "ver"
+    ~/AppData/Roaming/Cursor/User/keybindings.json:
+      path: vscode/keybindings.json
       if: "ver"
     ~/.wezterm.lua:
       if:

@@ -1,3 +1,6 @@
+if vim.loop.os_uname().sysname == "Windows_NT" then
+  return {}
+end
 return {
   "mrjones2014/smart-splits.nvim",
   build = "./kitty/install-kittens.bash",

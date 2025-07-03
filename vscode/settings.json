@@ -109,5 +109,7 @@
       "before": ["]", "e"],
       "commands": ["editor.action.marker.prev"]
     }
-  ]
+  ],
+  "git.autofetch": true,
+  "terminal.integrated.fontFamily": "MesloLGM Nerd Font"
 }
