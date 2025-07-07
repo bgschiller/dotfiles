@@ -6,6 +6,7 @@
 [alias]
     recent = "!f() { git for-each-ref --count=${1:-10} --sort=-committerdate refs/heads/ --format='%(refname:short)'; }; f"
     cor = !git recent 25 | fzf --reverse --nth=1 --preview 'git log --patch --color {1}...{1}~5' | awk '{print $1}' | xargs git checkout
+    ccs = "!f() { local changeset_files; changeset_files=$(git status -s | awk '{ if ($1 == \"A\") print $2 }' | grep .changeset); if [[ -n \"$changeset_files\" ]]; then echo \"$changeset_files\" | xargs -I {} sed '1,/^$/d' \"{}\" | git commit -F - --edit; else echo \"No changeset files found to commit. Perhaps you need to git add them?\" && exit 1; fi; }; f"
     burn-it-all = "!bash -c ' \
         git reset HEAD > /dev/null && \
         ((git merge --abort 2> /dev/null; git rebase --abort 2> /dev/null) || true) && \

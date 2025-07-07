@@ -132,4 +132,3 @@ eval "$(pyenv init -)"
 
 eval "$(mcfly init zsh)"
 
-. "~/.deno/env"
