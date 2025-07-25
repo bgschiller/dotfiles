@@ -18,6 +18,7 @@
     excludesfile = ~/.gitignore_global
     pager = delta
     ui = auto
+	symlinks = true
 [pull]
     rebase = true
 [branch]

@@ -10,6 +10,9 @@
     ~/.config/nvim:
     "C:\\Users\\BrianSchiller\\AppData\\Local\\nvim":
       if: "ver" # 'ver' is the windows equivalent of uname
+    "C:\\Users\\BrianSchiller\\AppData\\Roaming\\jj\\config.toml":
+      if: "ver"
+      path: jj-config.toml
     "C:\\Users\\BrianSchiller\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1":
       path: Microsoft.PowerShell_profile.ps1
       if: "ver"
@@ -17,6 +20,8 @@
     ~/.clang-format: clang-format
     ~/.config/espanso/default.yml:
       path: espanso.yml
+    ~/.config/jj/config.toml:
+      path: jj-config.toml
     ~/.gitconfig:
       if: # empty condition means use this path for all platforms
     ~/.gitignore_global:
