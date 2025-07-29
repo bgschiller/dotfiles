@@ -20,6 +20,9 @@ plugins=(git pass command-not-found)
 
 source $ZSH/oh-my-zsh.sh
 
+# extended_glob makes ^ a special character, which interferes with git reset HEAD^
+unsetopt extended_glob
+
 
 # add $HOME/bin to path if not present
 [[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
