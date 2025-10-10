@@ -29,8 +29,9 @@
     ~/.gitconfig-work:
       if:
     ~/.config/jrnl/jrnl.yaml:
-    ~/bin/s3_upload.py:
-    ~/bin/clipbox-screenshot.sh:
+    ~/bin:
+    ~/CLAUDE.md:
+      path: root_claude.md
     ~/.vscode/settings.json:
       path: vscode/settings.json
     ~/.vscode/keybindings.json:

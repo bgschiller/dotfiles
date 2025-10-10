@@ -62,3 +62,5 @@ desktop.ini
 node_modules
 .envrc
 
+.claude/settings.local.json
+.worktrees/

@@ -135,3 +135,9 @@ eval "$(pyenv init -)"
 
 eval "$(mcfly init zsh)"
 
+
+# Awesome Claude Code initialization
+AWESOME_CLAUDE_CODE_DIR="/Users/brian/.awesome-claude-code/repo"
+if [ -f "$AWESOME_CLAUDE_CODE_DIR/scripts/shell-init.sh" ]; then
+    source "$AWESOME_CLAUDE_CODE_DIR/scripts/shell-init.sh" "$AWESOME_CLAUDE_CODE_DIR"
+fi

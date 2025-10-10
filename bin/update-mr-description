@@ -1,0 +1,407 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+# Will be redirected to /dev/null in print-only mode
+log_info() { echo -e "${GREEN}[INFO]${NC} $1" >&2; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+
+# Parse arguments
+BRANCH_OR_NUMBER=""
+PRINT_ONLY=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+  --print-only)
+    PRINT_ONLY=true
+    shift
+    ;;
+  *)
+    BRANCH_OR_NUMBER="$1"
+    shift
+    ;;
+  esac
+done
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  log_error "Not in a git repository"
+  exit 1
+fi
+
+# Get the git remote origin URL
+ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+if [ -z "$ORIGIN_URL" ]; then
+  log_error "No origin remote found"
+  exit 1
+fi
+
+log_info "Repository origin: $ORIGIN_URL"
+
+# Determine if it's GitHub or GitLab
+REPO_TYPE=""
+REPO_PATH=""
+
+if [[ "$ORIGIN_URL" =~ github\.com ]]; then
+  REPO_TYPE="github"
+  # Extract owner/repo from various GitHub URL formats
+  if [[ "$ORIGIN_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then
+    REPO_PATH="${BASH_REMATCH[1]}"
+    REPO_PATH="${REPO_PATH%.git}"
+  fi
+elif [[ "$ORIGIN_URL" =~ gitlab ]]; then
+  REPO_TYPE="gitlab"
+  # Extract repo path from various GitLab URL formats
+  if [[ "$ORIGIN_URL" =~ [:/]([^:]+/[^/]+)(\.git)?$ ]]; then
+    REPO_PATH="${BASH_REMATCH[1]}"
+    REPO_PATH="${REPO_PATH%.git}"
+  fi
+else
+  log_error "Unable to determine if repository is GitHub or GitLab"
+  exit 1
+fi
+
+log_info "Detected repository type: $REPO_TYPE"
+log_info "Repository path: $REPO_PATH"
+
+# Check if required CLI tool is installed
+if [ "$REPO_TYPE" = "github" ]; then
+  if ! command -v gh &>/dev/null; then
+    log_error "gh CLI is not installed. Install it from: https://cli.github.com/"
+    exit 1
+  fi
+  CLI_TOOL="gh"
+elif [ "$REPO_TYPE" = "gitlab" ]; then
+  if ! command -v glab &>/dev/null; then
+    log_error "glab CLI is not installed. Install it from: https://gitlab.com/gitlab-org/cli"
+    exit 1
+  fi
+  CLI_TOOL="glab"
+fi
+
+# Check if claude CLI is installed
+if ! command -v claude &>/dev/null; then
+  log_error "claude CLI is not installed. Install it from: https://docs.anthropic.com/en/docs/claude-code"
+  exit 1
+fi
+
+# Find template file
+TEMPLATE_FILE=""
+if [ "$REPO_TYPE" = "github" ]; then
+  # GitHub PR template locations (in order of precedence)
+  TEMPLATE_PATHS=(
+    ".github/PULL_REQUEST_TEMPLATE.md"
+    ".github/pull_request_template.md"
+    "PULL_REQUEST_TEMPLATE.md"
+    "docs/PULL_REQUEST_TEMPLATE.md"
+  )
+elif [ "$REPO_TYPE" = "gitlab" ]; then
+  # GitLab MR template locations
+  TEMPLATE_PATHS=(
+    ".gitlab/merge_request_templates/Default.md"
+    ".gitlab/merge_request_templates/default.md"
+  )
+  # Also check for other templates in the directory
+  if [ -d ".gitlab/merge_request_templates" ]; then
+    for file in .gitlab/merge_request_templates/*.md; do
+      if [ -f "$file" ]; then
+        TEMPLATE_PATHS+=("$file")
+      fi
+    done
+  fi
+fi
+
+for path in "${TEMPLATE_PATHS[@]}"; do
+  if [ -f "$path" ]; then
+    TEMPLATE_FILE="$path"
+    log_info "Found template: $TEMPLATE_FILE"
+    break
+  fi
+done
+
+if [ -z "$TEMPLATE_FILE" ]; then
+  log_warn "No template file found, will generate description without template"
+fi
+
+# Determine which branch or MR/PR to work with
+CURRENT_BRANCH=""
+MR_OR_PR_ID=""
+TARGET_BRANCH=""
+BASE_BRANCH=""
+
+if [ -n "$BRANCH_OR_NUMBER" ]; then
+  # Check if argument is a number (MR/PR ID) or a branch name
+  if [[ "$BRANCH_OR_NUMBER" =~ ^[0-9]+$ ]]; then
+    MR_OR_PR_ID="$BRANCH_OR_NUMBER"
+    log_info "Using MR/PR number: $MR_OR_PR_ID"
+  else
+    CURRENT_BRANCH="$BRANCH_OR_NUMBER"
+    log_info "Using branch: $CURRENT_BRANCH"
+  fi
+else
+  # Use current branch if no argument provided
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  log_info "Using current branch: $CURRENT_BRANCH"
+fi
+
+# Get MR/PR details and determine target branch
+if [ "$REPO_TYPE" = "github" ]; then
+  if [ -n "$MR_OR_PR_ID" ]; then
+    # Get PR details by number
+    PR_DATA=$(gh pr view "$MR_OR_PR_ID" --json baseRefName,headRefName,number 2>/dev/null || echo "")
+    if [ -n "$PR_DATA" ]; then
+      CURRENT_BRANCH=$(echo "$PR_DATA" | jq -r .headRefName)
+      TARGET_BRANCH=$(echo "$PR_DATA" | jq -r .baseRefName)
+      log_info "PR #$MR_OR_PR_ID: $CURRENT_BRANCH -> $TARGET_BRANCH"
+      BASE_BRANCH="origin/$TARGET_BRANCH"
+    else
+      log_error "Could not find PR #$MR_OR_PR_ID"
+      exit 1
+    fi
+  else
+    # Try to get target branch from existing PR for this branch
+    PR_DATA=$(gh pr view "$CURRENT_BRANCH" --json baseRefName,headRefName,number 2>/dev/null || echo "")
+    if [ -n "$PR_DATA" ]; then
+      TARGET_BRANCH=$(echo "$PR_DATA" | jq -r .baseRefName)
+      MR_OR_PR_ID=$(echo "$PR_DATA" | jq -r .number)
+      log_info "Found existing PR #$MR_OR_PR_ID targeting: $TARGET_BRANCH"
+      BASE_BRANCH="origin/$TARGET_BRANCH"
+    else
+      # Use git merge-target, otherwise fall back to default branch
+      TARGET_BRANCH=$(git merge-target 2>/dev/null || echo "")
+      if [ -n "$TARGET_BRANCH" ]; then
+        log_info "Using git merge-target branch: $TARGET_BRANCH"
+        BASE_BRANCH="origin/$TARGET_BRANCH"
+      else
+        TARGET_BRANCH=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null || echo "main")
+        log_warn "No existing PR found and git merge-target not available, using default branch: $TARGET_BRANCH"
+        BASE_BRANCH="origin/$TARGET_BRANCH"
+      fi
+    fi
+  fi
+elif [ "$REPO_TYPE" = "gitlab" ]; then
+  if [ -n "$MR_OR_PR_ID" ]; then
+    # Get MR details by number
+    MR_DATA=$(glab mr view "$MR_OR_PR_ID" --output json 2>/dev/null || echo "")
+    if [ -n "$MR_DATA" ]; then
+      CURRENT_BRANCH=$(echo "$MR_DATA" | jq -r .source_branch)
+      TARGET_BRANCH=$(echo "$MR_DATA" | jq -r .target_branch)
+      log_info "MR !$MR_OR_PR_ID: $CURRENT_BRANCH -> $TARGET_BRANCH"
+      BASE_BRANCH="origin/$TARGET_BRANCH"
+    else
+      log_error "Could not find MR !$MR_OR_PR_ID"
+      exit 1
+    fi
+  else
+    # Try to get target branch from existing MR for this branch
+    MR_DATA=$(glab mr view "$CURRENT_BRANCH" --output json 2>/dev/null || echo "")
+    if [ -n "$MR_DATA" ]; then
+      TARGET_BRANCH=$(echo "$MR_DATA" | jq -r .target_branch)
+      MR_OR_PR_ID=$(echo "$MR_DATA" | jq -r .iid)
+      log_info "Found existing MR !$MR_OR_PR_ID targeting: $TARGET_BRANCH"
+      BASE_BRANCH="origin/$TARGET_BRANCH"
+    else
+      # Use git merge-target, otherwise fall back to default branch
+      TARGET_BRANCH=$(git merge-target 2>/dev/null || echo "")
+      if [ -n "$TARGET_BRANCH" ]; then
+        log_info "Using git merge-target branch: $TARGET_BRANCH"
+        BASE_BRANCH="origin/$TARGET_BRANCH"
+      else
+        TARGET_BRANCH=$(glab repo view --output json 2>/dev/null | jq -r .default_branch || echo "main")
+        log_warn "No existing MR found and git merge-target not available, using default branch: $TARGET_BRANCH"
+        BASE_BRANCH="origin/$TARGET_BRANCH"
+      fi
+    fi
+  fi
+fi
+
+log_info "Comparing $CURRENT_BRANCH against $BASE_BRANCH"
+
+# Get the diff statistics
+log_info "Analyzing changes..."
+DIFF_STATS=$(git diff --stat "$BASE_BRANCH"..."$CURRENT_BRANCH")
+DIFF_CONTENT=$(git diff "$BASE_BRANCH"..."$CURRENT_BRANCH")
+
+# Get commit messages
+COMMIT_MESSAGES=$(git log --pretty=format:"- %s" "$BASE_BRANCH".."$CURRENT_BRANCH")
+
+# Extract experiments and gates for inkwell repo
+EXPERIMENTS_GATES_INFO=""
+if [[ "$REPO_PATH" =~ client-platform/inkwell ]]; then
+  log_info "Detected inkwell repository, extracting experiments and gates..."
+
+  # Get list of changed files in packages/ directories
+  CHANGED_PACKAGES=$(git diff --name-only "$BASE_BRANCH"..."$CURRENT_BRANCH" | grep '^packages/' | cut -d'/' -f1-2 | sort -u)
+
+  # Collect experiments and gates from each changed package
+  ALL_EXPERIMENTS=""
+  ALL_GATES=""
+
+  for package_dir in $CHANGED_PACKAGES; do
+    PACKAGE_JSON="$package_dir/package.json"
+    if [ -f "$PACKAGE_JSON" ]; then
+      # Extract experiments using jq
+      EXPERIMENTS=$(jq -r '
+                .inkwell.experiments // {} |
+                to_entries[] |
+                "  - **\(.key)**: \(.value.description)"
+            ' "$PACKAGE_JSON" 2>/dev/null || echo "")
+
+      # Extract gates using jq
+      GATES=$(jq -r '
+                .inkwell.gates // {} |
+                to_entries[] |
+                "  - **\(.key)**: \(.value.description)"
+            ' "$PACKAGE_JSON" 2>/dev/null || echo "")
+
+      if [ -n "$EXPERIMENTS" ]; then
+        ALL_EXPERIMENTS+="$EXPERIMENTS"$'\n'
+      fi
+
+      if [ -n "$GATES" ]; then
+        ALL_GATES+="$GATES"$'\n'
+      fi
+    fi
+  done
+
+  # Build the info section if we found any experiments or gates
+  if [ -n "$ALL_EXPERIMENTS" ] || [ -n "$ALL_GATES" ]; then
+    EXPERIMENTS_GATES_INFO=$'\n\n'"## Experiments and Gates"$'\n\n'
+
+    if [ -n "$ALL_EXPERIMENTS" ]; then
+      EXPERIMENTS_GATES_INFO+="### Experiments"$'\n'"$ALL_EXPERIMENTS"$'\n'
+    fi
+
+    if [ -n "$ALL_GATES" ]; then
+      EXPERIMENTS_GATES_INFO+="### Gates"$'\n'"$ALL_GATES"
+    fi
+
+    log_info "Found experiments and gates information"
+  fi
+fi
+
+# Read template if it exists
+TEMPLATE_CONTENT=""
+if [ -n "$TEMPLATE_FILE" ]; then
+  TEMPLATE_CONTENT=$(cat "$TEMPLATE_FILE")
+fi
+
+# Generate description using claude CLI
+log_info "Generating description using Claude..."
+
+PROMPT="You are helping to fill out a merge/pull request description.
+
+Repository: $REPO_PATH
+Branch: $CURRENT_BRANCH -> $TARGET_BRANCH
+
+"
+
+if [ -n "$TEMPLATE_CONTENT" ]; then
+  PROMPT+="Template to fill out:
+\`\`\`markdown
+$TEMPLATE_CONTENT
+\`\`\`
+
+"
+fi
+
+PROMPT+="Commit messages:
+$COMMIT_MESSAGES
+
+Diff statistics:
+$DIFF_STATS
+"
+
+if [ -n "$EXPERIMENTS_GATES_INFO" ]; then
+  PROMPT+="
+Experiments and Gates in changed packages:
+$EXPERIMENTS_GATES_INFO
+"
+fi
+
+PROMPT+="
+Based on the changes in this branch, please generate a comprehensive description that:
+1. Explains the context and problem being solved
+2. Describes the implementation approach
+3. Outlines the testing strategy
+4. Provides manual testing steps if applicable
+5. If experiments and gates are provided, include a section explaining which experiments/gates are affected and how to test them
+6. If using the template, fill out all sections appropriately
+7. Be concise but thorough
+8. Skip the '# Commits' section, as we'll add those separately
+
+Please output ONLY the filled-out description in markdown format, without any preamble or explanation."
+
+# Use claude --print to generate the description
+DESCRIPTION=$(echo "$PROMPT" | claude --print 2>/dev/null || echo "")
+
+if [ -z "$DESCRIPTION" ]; then
+  log_error "Failed to generate description with Claude"
+  exit 1
+fi
+
+# Remove leading and trailing triple-backtick fenced code blocks if present
+# Claude sometimes wraps the response in ```markdown ... ```
+if [[ "$DESCRIPTION" =~ ^\`\`\`[a-z]*$'\n' ]]; then
+  # Remove first line if it starts with ```
+  DESCRIPTION=$(echo "$DESCRIPTION" | tail -n +2)
+fi
+if [[ "$DESCRIPTION" =~ $'\n'\`\`\`$ ]]; then
+  # Remove last line if it's just ``` (macOS compatible)
+  DESCRIPTION=$(echo "$DESCRIPTION" | sed '$d')
+fi
+
+# If print-only mode, just output the description and exit
+if [ "$PRINT_ONLY" = true ]; then
+  echo "$DESCRIPTION"
+  exit 0
+fi
+
+OUTPUT_FILE="mr-description-$(date +%Y%m%d-%H%M%S).md"
+echo "// MR Description generated by update-mr-description" >"$OUTPUT_FILE"
+echo "// Edit before submitting" >>"$OUTPUT_FILE"
+echo "// any lines starting with // will be ignored" >>"$OUTPUT_FILE"
+echo "// To cancel, delete the contents of the file and save and quit" >>"$OUTPUT_FILE"
+echo "$DESCRIPTION" >>"$OUTPUT_FILE"
+echo "" >>"$OUTPUT_FILE"
+echo "## Commits:" >>"$OUTPUT_FILE"
+echo "$COMMIT_MESSAGES" >>"$OUTPUT_FILE"
+$EDITOR "$OUTPUT_FILE"
+
+EDITOR_OUTPUT=$(cat "$OUTPUT_FILE" | grep -v "^//")
+if [ -z "$EDITOR_OUTPUT" ]; then
+  log_warn "MR description update cancelled due to empty file"
+  exit 1
+fi
+
+echo "$EDITOR_OUTPUT" >"$OUTPUT_FILE"
+
+# Update MR/PR if one exists
+if [ "$REPO_TYPE" = "github" ]; then
+  if [ -n "$MR_OR_PR_ID" ]; then
+    log_info "Updating PR #$MR_OR_PR_ID description..."
+    gh pr edit "$MR_OR_PR_ID" --body-file "$OUTPUT_FILE"
+    log_info "PR description updated successfully"
+  else
+    log_warn "No existing PR found for branch $CURRENT_BRANCH"
+    log_info "You can create a PR with: gh pr create --body-file \"$OUTPUT_FILE\""
+  fi
+elif [ "$REPO_TYPE" = "gitlab" ]; then
+  if [ -n "$MR_OR_PR_ID" ]; then
+    log_info "Updating MR !$MR_OR_PR_ID description..."
+    glab mr update "$MR_OR_PR_ID" --description "$(cat "$OUTPUT_FILE")"
+    log_info "MR description updated successfully"
+  else
+    log_warn "No existing MR found for branch $CURRENT_BRANCH"
+    log_info "You can create an MR with: glab mr create --description \"\$(cat \"$OUTPUT_FILE\")\""
+  fi
+fi
+
+# Also save to a file for reference
