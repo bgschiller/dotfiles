@@ -18,6 +18,7 @@
       if: "ver"
     ~/.config/kitty:
     ~/.clang-format: clang-format
+    ~/.config/ccstatusline:
     ~/.config/espanso/default.yml:
       path: espanso.yml
     ~/.config/jj/config.toml:
