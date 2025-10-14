@@ -30,8 +30,7 @@
       if:
     ~/.config/jrnl/jrnl.yaml:
     ~/bin:
-    ~/CLAUDE.md:
-      path: root_claude.md
+    ~/.claude:
     ~/.vscode/settings.json:
       path: vscode/settings.json
     ~/.vscode/keybindings.json:

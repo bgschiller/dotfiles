@@ -67,7 +67,7 @@ Output ONLY the title, no quotes, no explanation.
 Commits:
 $COMMITS"
 
-TITLE=$(echo "$TITLE_PROMPT" | claude --print 2>/dev/null)
+TITLE=$(echo "$TITLE_PROMPT" | claude --print --model claude-3-5-haiku-20241022 2>/dev/null)
 if [ -z "$TITLE" ]; then
   log_error "Failed to generate title"
   exit 1
@@ -88,13 +88,38 @@ if [ -z "$DESCRIPTION" ]; then
 fi
 log_info "Generated description (${#DESCRIPTION} characters)"
 
+# Write description to temp file and open in editor for approval
+DESCRIPTION_FILE=$(mktemp "/tmp/mr-description-XXXXXX.md")
+echo "// MR Description for: $TITLE" >"$DESCRIPTION_FILE"
+echo "// Edit before submitting" >>"$DESCRIPTION_FILE"
+echo "// Any lines starting with // will be ignored" >>"$DESCRIPTION_FILE"
+echo "// To cancel, delete the contents of the file and save and quit" >>"$DESCRIPTION_FILE"
+echo "$DESCRIPTION" >>"$DESCRIPTION_FILE"
+
+log_step "Opening description in \$EDITOR for approval..."
+"${EDITOR:-vi}" "$DESCRIPTION_FILE"
+
+# Read back the edited description and filter out comment lines
+EDITOR_OUTPUT=$(grep -v "^//" "$DESCRIPTION_FILE" || true)
+if [ -z "$EDITOR_OUTPUT" ]; then
+  log_warn "MR creation cancelled due to empty file"
+  rm -f "$DESCRIPTION_FILE"
+  exit 1
+fi
+
+log_info "Description approved"
+
+# Clean up temp file
+rm -f "$DESCRIPTION_FILE"
+
 # Create the merge request
 log_step "Creating merge request..."
 log_info "Running: glab mr create --title \"$TITLE\" --description <description> --target-branch \"$TARGET_BRANCH\" --yes"
 MR_OUTPUT=$(glab mr create \
   --title "$TITLE" \
-  --description "$DESCRIPTION" \
+  --description "$EDITOR_OUTPUT" \
   --target-branch "$TARGET_BRANCH" \
+  --remove-source-branch \
   --yes 2>&1)
 MR_EXIT_CODE=$?
 
@@ -193,7 +218,7 @@ fi
 log_step "Generating Slack review request..."
 echo ""
 echo "=== Slack Message ==="
-echo "Please review my MR [$TITLE]($MR_URL)"
+echo "Please review my MR to [$TITLE]($MR_URL)"
 echo "===================="
 echo ""
 
