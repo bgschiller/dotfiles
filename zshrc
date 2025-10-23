@@ -61,6 +61,21 @@ if which xclip 2>&1 > /dev/null; then
   }
 fi
 
+function mkcd() {
+  \mkdir -p "$1"
+  cd "$1"
+}
+
+function boop () {
+  local last="$?"
+  if [[ "$last" == '0' ]]; then
+    sfx good
+  else
+    sfx bad
+  fi
+  $(exit "$last")
+}
+
 [ -f /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh ] && source /usr/local/Cellar/fzf/0.17.5/shell/key-bindings.zsh
 [ -f /usr/share/fzf/shell/key-bindings.zsh ] && source /usr/share/fzf/shell/key-bindings.zsh
 [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
@@ -141,3 +156,7 @@ AWESOME_CLAUDE_CODE_DIR="/Users/brian/.awesome-claude-code/repo"
 if [ -f "$AWESOME_CLAUDE_CODE_DIR/scripts/shell-init.sh" ]; then
     source "$AWESOME_CLAUDE_CODE_DIR/scripts/shell-init.sh" "$AWESOME_CLAUDE_CODE_DIR"
 fi
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion

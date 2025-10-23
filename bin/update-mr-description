@@ -229,7 +229,28 @@ log_info "Analyzing changes..."
 DIFF_STATS=$(git diff --stat "$BASE_BRANCH"..."$CURRENT_BRANCH")
 DIFF_CONTENT=$(git diff "$BASE_BRANCH"..."$CURRENT_BRANCH")
 
-# Get commit messages
+# Get full commit details (subject, body, and individual diffs)
+log_info "Collecting commit details..."
+COMMIT_DETAILS=""
+# Get list of commit hashes
+COMMIT_HASHES=$(git log --pretty=format:"%H" "$BASE_BRANCH".."$CURRENT_BRANCH")
+
+for commit in $COMMIT_HASHES; do
+  COMMIT_SUBJECT=$(git log -1 --pretty=format:"%s" "$commit")
+  COMMIT_BODY=$(git log -1 --pretty=format:"%b" "$commit")
+  COMMIT_DIFF=$(git show --pretty=format:"" "$commit")
+
+  COMMIT_DETAILS+="## Commit: $COMMIT_SUBJECT"$'\n\n'
+  if [ -n "$COMMIT_BODY" ]; then
+    COMMIT_DETAILS+="$COMMIT_BODY"$'\n\n'
+  fi
+  COMMIT_DETAILS+="### Diff:"$'\n'
+  COMMIT_DETAILS+='```'$'\n'
+  COMMIT_DETAILS+="$COMMIT_DIFF"$'\n'
+  COMMIT_DETAILS+='```'$'\n\n'
+done
+
+# Also keep simple commit list for backwards compatibility
 COMMIT_MESSAGES=$(git log --pretty=format:"- %s" "$BASE_BRANCH".."$CURRENT_BRANCH")
 
 # Extract experiments and gates for inkwell repo
@@ -293,10 +314,10 @@ if [ -n "$TEMPLATE_FILE" ]; then
   TEMPLATE_CONTENT=$(cat "$TEMPLATE_FILE")
 fi
 
-# Generate description using claude CLI
-log_info "Generating description using Claude..."
+# Generate title and description using claude CLI
+log_info "Generating title and description using Claude..."
 
-PROMPT="You are helping to fill out a merge/pull request description.
+PROMPT="You are helping to create a merge/pull request with a title and description.
 
 Repository: $REPO_PATH
 Branch: $CURRENT_BRANCH -> $TARGET_BRANCH
@@ -304,7 +325,7 @@ Branch: $CURRENT_BRANCH -> $TARGET_BRANCH
 "
 
 if [ -n "$TEMPLATE_CONTENT" ]; then
-  PROMPT+="Template to fill out:
+  PROMPT+="Template to follow for the description:
 \`\`\`markdown
 $TEMPLATE_CONTENT
 \`\`\`
@@ -312,10 +333,10 @@ $TEMPLATE_CONTENT
 "
 fi
 
-PROMPT+="Commit messages:
-$COMMIT_MESSAGES
+PROMPT+="Full commit details with diffs:
+$COMMIT_DETAILS
 
-Diff statistics:
+Overall diff statistics:
 $DIFF_STATS
 "
 
@@ -327,49 +348,66 @@ $EXPERIMENTS_GATES_INFO
 fi
 
 PROMPT+="
-Based on the changes in this branch, please generate a comprehensive description that:
-1. Explains the context and problem being solved
-2. Describes the implementation approach
-3. Outlines the testing strategy
-4. Provides manual testing steps if applicable
-5. If experiments and gates are provided, include a section explaining which experiments/gates are affected and how to test them
-6. If using the template, fill out all sections appropriately
-7. Be concise but thorough
-8. Skip the '# Commits' section, as we'll add those separately
+Based on the changes in this branch, please generate:
+1. A concise, clear merge request title (max 80 characters) in imperative mood (e.g., 'Add feature' not 'Added feature')
+2. A comprehensive description that:
+   - Explains the context and problem being solved
+   - Describes the implementation approach
+   - Outlines the testing strategy
+   - Provides manual testing steps if applicable
+   - If experiments and gates are provided, include a section explaining which experiments/gates are affected and how to test them
+   - If using the template, fill out all sections appropriately
+   - Be concise but thorough
 
-Please output ONLY the filled-out description in markdown format, without any preamble or explanation."
+Please output in this exact format:
+# Your Title Here
 
-# Use claude --print to generate the description
-DESCRIPTION=$(echo "$PROMPT" | claude --print 2>/dev/null || echo "")
+Description content here in markdown format, following the template if provided.
 
-if [ -z "$DESCRIPTION" ]; then
-  log_error "Failed to generate description with Claude"
+Output ONLY this format with no preamble, no code fences around the entire output, and no explanation."
+
+log_info "Prompt length: ${#PROMPT} characters"
+log_info "Calling claude --print (this may take a moment)..."
+
+# Use claude --print to generate title and description
+CLAUDE_OUTPUT=$(echo "$PROMPT" | claude --print 2>&1)
+CLAUDE_EXIT_CODE=$?
+log_info "Claude exit code: $CLAUDE_EXIT_CODE"
+
+if [ $CLAUDE_EXIT_CODE -ne 0 ]; then
+  log_error "Claude command failed with exit code $CLAUDE_EXIT_CODE"
+  log_error "Output: ${CLAUDE_OUTPUT:0:500}"
+  exit 1
+fi
+
+if [ -z "$CLAUDE_OUTPUT" ]; then
+  log_error "Failed to generate title and description with Claude"
   exit 1
 fi
 
 # Remove leading and trailing triple-backtick fenced code blocks if present
 # Claude sometimes wraps the response in ```markdown ... ```
-if [[ "$DESCRIPTION" =~ ^\`\`\`[a-z]*$'\n' ]]; then
+if [[ "$CLAUDE_OUTPUT" =~ ^\`\`\`[a-z]*$'\n' ]]; then
   # Remove first line if it starts with ```
-  DESCRIPTION=$(echo "$DESCRIPTION" | tail -n +2)
+  CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | tail -n +2)
 fi
-if [[ "$DESCRIPTION" =~ $'\n'\`\`\`$ ]]; then
+if [[ "$CLAUDE_OUTPUT" =~ $'\n'\`\`\`$ ]]; then
   # Remove last line if it's just ``` (macOS compatible)
-  DESCRIPTION=$(echo "$DESCRIPTION" | sed '$d')
+  CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | sed '$d')
 fi
 
-# If print-only mode, just output the description and exit
+# If print-only mode, just output the complete result (title + description) and exit
 if [ "$PRINT_ONLY" = true ]; then
-  echo "$DESCRIPTION"
+  echo "$CLAUDE_OUTPUT"
   exit 0
 fi
 
 OUTPUT_FILE="mr-description-$(date +%Y%m%d-%H%M%S).md"
-echo "// MR Description generated by update-mr-description" >"$OUTPUT_FILE"
+echo "// MR Title and Description generated by update-mr-description" >"$OUTPUT_FILE"
 echo "// Edit before submitting" >>"$OUTPUT_FILE"
 echo "// any lines starting with // will be ignored" >>"$OUTPUT_FILE"
 echo "// To cancel, delete the contents of the file and save and quit" >>"$OUTPUT_FILE"
-echo "$DESCRIPTION" >>"$OUTPUT_FILE"
+echo "$CLAUDE_OUTPUT" >>"$OUTPUT_FILE"
 echo "" >>"$OUTPUT_FILE"
 echo "## Commits:" >>"$OUTPUT_FILE"
 echo "$COMMIT_MESSAGES" >>"$OUTPUT_FILE"

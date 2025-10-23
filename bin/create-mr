@@ -14,6 +14,9 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1" >&2; }
 
+log_step "Starting create-mr script..."
+log_info "Working directory: $(pwd)"
+
 # Check if we're in a git repository
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   log_error "Not in a git repository"
@@ -42,9 +45,17 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 log_info "Current branch: $CURRENT_BRANCH"
 
 # Check if branch is already pushed
+log_step "Checking if branch is already pushed..."
 if ! git rev-parse --verify "origin/$CURRENT_BRANCH" &>/dev/null; then
   log_step "Pushing branch to remote..."
-  git push -u origin "$CURRENT_BRANCH"
+  if git push -u origin "$CURRENT_BRANCH"; then
+    log_info "Branch pushed successfully"
+  else
+    log_error "Failed to push branch"
+    exit 1
+  fi
+else
+  log_info "Branch already exists on remote"
 fi
 
 # Get target branch using git merge-target
@@ -55,51 +66,67 @@ if [ -z "$TARGET_BRANCH" ]; then
 fi
 log_info "Target branch: $TARGET_BRANCH"
 
-# Get commit messages for title generation
-COMMITS=$(git log --pretty=format:"- %s" "origin/$TARGET_BRANCH".."$CURRENT_BRANCH" 2>/dev/null || git log --pretty=format:"- %s" -1)
+# Generate title and description using update-mr-description
+log_step "Generating MR title and description..."
+log_info "Running: $UPDATE_MR_DESCRIPTION --print-only $CURRENT_BRANCH"
+MR_CONTENT=$("$UPDATE_MR_DESCRIPTION" --print-only "$CURRENT_BRANCH")
+MR_CONTENT_EXIT_CODE=$?
+log_info "update-mr-description exit code: $MR_CONTENT_EXIT_CODE"
 
-# Generate title using Claude
-log_step "Generating MR title..."
-TITLE_PROMPT="Based on these commit messages, generate a concise, clear merge request title (max 80 characters).
-Use imperative mood (e.g., 'Add feature' not 'Added feature').
-Output ONLY the title, no quotes, no explanation.
+if [ $MR_CONTENT_EXIT_CODE -ne 0 ]; then
+  log_error "update-mr-description failed with exit code $MR_CONTENT_EXIT_CODE"
+  log_error "Output: ${MR_CONTENT:0:500}"
+  exit 1
+fi
+if [ -z "$MR_CONTENT" ]; then
+  log_error "Failed to generate MR content (empty output)"
+  exit 1
+fi
 
-Commits:
-$COMMITS"
+# Parse the output to extract title and description
+# Expected format: # Title\n\nDescription
+log_step "Parsing title and description..."
 
-TITLE=$(echo "$TITLE_PROMPT" | claude --print --model claude-3-5-haiku-20241022 2>/dev/null)
+# Extract title (first line that starts with #)
+TITLE=$(echo "$MR_CONTENT" | grep -m 1 "^# " | sed 's/^# //')
 if [ -z "$TITLE" ]; then
-  log_error "Failed to generate title"
+  log_error "Failed to parse title from output"
+  log_error "Output: ${MR_CONTENT:0:500}"
   exit 1
 fi
-log_info "Generated title: $TITLE"
+log_info "Parsed title: $TITLE"
 
-# Generate description using update-mr-description
-log_step "Generating MR description..."
-DESCRIPTION=$("$UPDATE_MR_DESCRIPTION" --print-only "$CURRENT_BRANCH")
-DESCRIPTION_EXIT_CODE=$?
-if [ $DESCRIPTION_EXIT_CODE -ne 0 ]; then
-  log_error "update-mr-description failed with exit code $DESCRIPTION_EXIT_CODE"
-  exit 1
-fi
+# Extract description (everything after the title line)
+# Skip first line (the title), then trim leading blank lines
+DESCRIPTION=$(echo "$MR_CONTENT" | tail -n +2 | sed '/./,$!d')
 if [ -z "$DESCRIPTION" ]; then
-  log_error "Failed to generate description (empty output)"
+  log_error "Failed to parse description from output"
   exit 1
 fi
-log_info "Generated description (${#DESCRIPTION} characters)"
+log_info "Parsed description (${#DESCRIPTION} characters)"
+log_info "First 200 chars: ${DESCRIPTION:0:200}"
 
-# Write description to temp file and open in editor for approval
+# Write title and description to temp file and open in editor for approval
+log_step "Creating temp file for MR content..."
 DESCRIPTION_FILE=$(mktemp "/tmp/mr-description-XXXXXX.md")
-echo "// MR Description for: $TITLE" >"$DESCRIPTION_FILE"
+log_info "Temp file: $DESCRIPTION_FILE"
+
+echo "// MR Title and Description" >"$DESCRIPTION_FILE"
 echo "// Edit before submitting" >>"$DESCRIPTION_FILE"
 echo "// Any lines starting with // will be ignored" >>"$DESCRIPTION_FILE"
 echo "// To cancel, delete the contents of the file and save and quit" >>"$DESCRIPTION_FILE"
+echo "" >>"$DESCRIPTION_FILE"
+echo "# $TITLE" >>"$DESCRIPTION_FILE"
+echo "" >>"$DESCRIPTION_FILE"
 echo "$DESCRIPTION" >>"$DESCRIPTION_FILE"
 
-log_step "Opening description in \$EDITOR for approval..."
+log_info "Wrote title and description to temp file"
+log_step "Opening MR content in \$EDITOR for approval..."
+log_info "EDITOR=${EDITOR:-vi}"
 "${EDITOR:-vi}" "$DESCRIPTION_FILE"
+log_info "Editor closed"
 
-# Read back the edited description and filter out comment lines
+# Read back the edited content and filter out comment lines
 EDITOR_OUTPUT=$(grep -v "^//" "$DESCRIPTION_FILE" || true)
 if [ -z "$EDITOR_OUTPUT" ]; then
   log_warn "MR creation cancelled due to empty file"
@@ -107,7 +134,19 @@ if [ -z "$EDITOR_OUTPUT" ]; then
   exit 1
 fi
 
-log_info "Description approved"
+log_info "Content approved"
+
+# Re-parse title and description from edited content
+TITLE=$(echo "$EDITOR_OUTPUT" | grep -m 1 "^# " | sed 's/^# //')
+DESCRIPTION=$(echo "$EDITOR_OUTPUT" | tail -n +2 | sed '/./,$!d')
+
+if [ -z "$TITLE" ]; then
+  log_error "Title is empty after editing"
+  rm -f "$DESCRIPTION_FILE"
+  exit 1
+fi
+log_info "Final title: $TITLE"
+log_info "Final description length: ${#DESCRIPTION} characters"
 
 # Clean up temp file
 rm -f "$DESCRIPTION_FILE"
@@ -117,7 +156,7 @@ log_step "Creating merge request..."
 log_info "Running: glab mr create --title \"$TITLE\" --description <description> --target-branch \"$TARGET_BRANCH\" --yes"
 MR_OUTPUT=$(glab mr create \
   --title "$TITLE" \
-  --description "$EDITOR_OUTPUT" \
+  --description "$DESCRIPTION" \
   --target-branch "$TARGET_BRANCH" \
   --remove-source-branch \
   --yes 2>&1)

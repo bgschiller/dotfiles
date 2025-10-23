@@ -19,6 +19,7 @@
     ~/.config/kitty:
     ~/.clang-format: clang-format
     ~/.config/ccstatusline:
+    ~/.config/evanhahn-sfx:
     ~/.config/espanso/default.yml:
       path: espanso.yml
     ~/.config/jj/config.toml:

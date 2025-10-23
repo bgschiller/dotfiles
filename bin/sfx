@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+exec mpv --really-quiet --no-video "$XDG_CONFIG_HOME/evanhahn-sfx/$1.ogg" &
