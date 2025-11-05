@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fpath="$(which "$1")"
+
+if [[ -f "$fpath" ]]; then
+  bat "$fpath"
+else
+  which "$1"
+fi

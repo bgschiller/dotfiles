@@ -36,6 +36,9 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 
+# Get the git repository root
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
 # Get the git remote origin URL
 ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
 if [ -z "$ORIGIN_URL" ]; then
@@ -109,19 +112,23 @@ elif [ "$REPO_TYPE" = "gitlab" ]; then
     ".gitlab/merge_request_templates/default.md"
   )
   # Also check for other templates in the directory
-  if [ -d ".gitlab/merge_request_templates" ]; then
-    for file in .gitlab/merge_request_templates/*.md; do
+  if [ -d "$REPO_ROOT/.gitlab/merge_request_templates" ]; then
+    for file in "$REPO_ROOT/.gitlab/merge_request_templates"/*.md; do
       if [ -f "$file" ]; then
-        TEMPLATE_PATHS+=("$file")
+        # Convert to relative path for TEMPLATE_PATHS array
+        rel_path="${file#$REPO_ROOT/}"
+        TEMPLATE_PATHS+=("$rel_path")
       fi
     done
   fi
 fi
 
 for path in "${TEMPLATE_PATHS[@]}"; do
-  if [ -f "$path" ]; then
-    TEMPLATE_FILE="$path"
-    log_info "Found template: $TEMPLATE_FILE"
+  # Check for template relative to repo root
+  full_path="$REPO_ROOT/$path"
+  if [ -f "$full_path" ]; then
+    TEMPLATE_FILE="$full_path"
+    log_info "Found template: $path"
     break
   fi
 done
@@ -259,7 +266,7 @@ if [[ "$REPO_PATH" =~ client-platform/inkwell ]]; then
   log_info "Detected inkwell repository, extracting experiments and gates..."
 
   # Get list of changed files in packages/ directories
-  CHANGED_PACKAGES=$(git diff --name-only "$BASE_BRANCH"..."$CURRENT_BRANCH" | grep '^packages/' | cut -d'/' -f1-2 | sort -u)
+  CHANGED_PACKAGES=$(git diff --name-only "$BASE_BRANCH"..."$CURRENT_BRANCH" | grep '^packages/' | cut -d'/' -f1-2 | sort -u || true)
 
   # Collect experiments and gates from each changed package
   ALL_EXPERIMENTS=""
@@ -442,4 +449,5 @@ elif [ "$REPO_TYPE" = "gitlab" ]; then
   fi
 fi
 
-# Also save to a file for reference
+# clean up tempory file
+rm "$OUTPUT_FILE"

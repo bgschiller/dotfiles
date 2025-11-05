@@ -84,15 +84,22 @@ if [ -z "$MR_CONTENT" ]; then
 fi
 
 # Parse the output to extract title and description
-# Expected format: # Title\n\nDescription
+# Expected format: # Title\n\nDescription OR Title (first line)\n\nDescription
 log_step "Parsing title and description..."
 
-# Extract title (first line that starts with #)
+# Extract title - try two formats:
+# 1. First line that starts with # (markdown heading)
 TITLE=$(echo "$MR_CONTENT" | grep -m 1 "^# " | sed 's/^# //')
+
+# 2. If no markdown heading found, use first non-empty line as title
 if [ -z "$TITLE" ]; then
-  log_error "Failed to parse title from output"
-  log_error "Output: ${MR_CONTENT:0:500}"
-  exit 1
+  TITLE=$(echo "$MR_CONTENT" | head -1 | sed 's/^[[:space:]]*//')
+  if [ -z "$TITLE" ]; then
+    log_error "Failed to parse title from output"
+    log_error "Output: ${MR_CONTENT:0:500}"
+    exit 1
+  fi
+  log_info "Using first line as title (no # found)"
 fi
 log_info "Parsed title: $TITLE"
 
@@ -138,6 +145,10 @@ log_info "Content approved"
 
 # Re-parse title and description from edited content
 TITLE=$(echo "$EDITOR_OUTPUT" | grep -m 1 "^# " | sed 's/^# //')
+# If no markdown heading found, use first non-empty line as title
+if [ -z "$TITLE" ]; then
+  TITLE=$(echo "$EDITOR_OUTPUT" | head -1 | sed 's/^[[:space:]]*//')
+fi
 DESCRIPTION=$(echo "$EDITOR_OUTPUT" | tail -n +2 | sed '/./,$!d')
 
 if [ -z "$TITLE" ]; then
