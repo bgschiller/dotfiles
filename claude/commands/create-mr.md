@@ -1,6 +1,27 @@
+---
+allowed_tools:
+  - Bash(git rev-parse:*)
+  - Bash(git push:*)
+  - Bash(git merge-target:*)
+  - Bash(git log:*)
+  - Bash(git show:*)
+  - Bash(git diff:*)
+  - Bash(glab mr create:*)
+  - Bash(glab repo view:*)
+  - Bash(glab api:*)
+---
+
 # Create Merge Request
 
 Create a GitLab merge request using the context already present in this Claude session.
+
+## Context
+
+- Current branch: !`git rev-parse --abbrev-ref HEAD`
+- Target branch: !`git merge-target 2>/dev/null || echo "main"`
+- Branch pushed to origin: !`git rev-parse --verify origin/$(git rev-parse --abbrev-ref HEAD) &>/dev/null && echo "yes" || echo "no"`
+- Commits in this branch: !`git log --pretty=format:"%H %s" $(git merge-target 2>/dev/null || echo "main")..HEAD`
+- Diff stat: !`git diff --stat $(git merge-target 2>/dev/null || echo "main")...HEAD`
 
 ## Usage
 
@@ -28,6 +49,7 @@ TARGET_BRANCH=$(git merge-target 2>/dev/null || echo "main")
 ### 3. Generate title and description
 
 Based on all commits since the target branch, generate:
+
 - A concise title (max 80 characters) in imperative mood (e.g., "Add feature" not "Added feature")
 - A comprehensive description that:
   - Explains the context and problem being solved
@@ -37,11 +59,13 @@ Based on all commits since the target branch, generate:
   - Adheres to the merge request template if one exists in the repository
 
 To find the merge request template, check these locations:
+
 - `.gitlab/merge_request_templates/Default.md`
 - `.gitlab/merge_request_templates/default.md`
 - Any other `.md` files in `.gitlab/merge_request_templates/`
 
 To get commit information:
+
 ```bash
 # Get commit hashes
 git log --pretty=format:"%H" "$TARGET_BRANCH".."$CURRENT_BRANCH"
@@ -53,6 +77,7 @@ git show --pretty=format:"" "$commit"       # diff
 ```
 
 Also consider the full diff:
+
 ```bash
 git diff --stat "$TARGET_BRANCH"..."$CURRENT_BRANCH"
 git diff "$TARGET_BRANCH"..."$CURRENT_BRANCH"
@@ -78,6 +103,7 @@ glab mr create \
 ```
 
 Extract the MR number from the output:
+
 ```bash
 MR_URL=$(echo "$OUTPUT" | grep -oE 'https://[^ ]+' | head -1)
 MR_NUMBER=$(echo "$MR_URL" | grep -oE '[0-9]+$')
