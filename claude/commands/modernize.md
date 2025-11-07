@@ -167,13 +167,20 @@ npx nx lint {package-name}
 
 All three must pass without errors or warnings.
 
-### 14. Check that the ESM import works:
+### 14. Check package integrity
+
+Run the package integrity checks to ensure everything is properly configured:
 
 ```bash
-node --input-type=module --eval "import './dist/{entrypoint}.mjs'"
+npx nx test-package-integrity {package-name}
+npx nx check-package-imports {package-name}
 ```
 
-Once this works, remove this package from EXPECTED_FAILED_PACKAGES in .gitlab-ci/scripts/check-package-imports.sh.
+These checks verify:
+- **test-package-integrity**: Ensures dist files exist as declared in package.json (main, module, types, exports) and TypeScript compiles correctly
+- **check-package-imports**: Tests that the package can be imported successfully as an ESM module
+
+If a package is expected to fail the import check temporarily, add the tag `"expected-to-fail-package-imports"` to the package.json `nx.tags` array. Remove this tag once the package passes.
 
 ### 15. Create changeset
 
@@ -228,6 +235,22 @@ Modernize build setup: migrate from Vite to Rollup with shared config, simplify 
 **"Cannot find '@grammarly/tsconfig'":**
 - Run `pnpm install` to link workspace dependencies
 
+### Package Integrity Errors
+
+**"Missing file for 'main'":**
+- Check that the build output exists in dist/
+- Verify rollup.config.mts is configured correctly
+- Run build again: `npx nx build {package-name}`
+
+**"TypeScript compilation check failed":**
+- Check for broken .d.ts files in dist/
+- Ensure all imports in source files have correct extensions (.js for fp-ts)
+- Look for circular type dependencies
+
+**"Package now imports successfully. Please remove the 'expected-to-fail-package-imports' tag":**
+- This is good news! Remove `"expected-to-fail-package-imports"` from `nx.tags` in package.json
+- The package is now properly configured for ESM
+
 ## Recommendations
 
 ### Before Starting
@@ -248,12 +271,57 @@ Modernize build setup: migrate from Vite to Rollup with shared config, simplify 
    - `npx nx build {package-name}` ✓
    - `npx nx test {package-name}` ✓
    - `npx nx lint {package-name}` ✓
+   - `npx nx test-package-integrity {package-name}` ✓
+   - `npx nx check-package-imports {package-name}` ✓
 
 2. **Review the diff** - Ensure changes match the pattern from the reference commit
 
 3. **Create meaningful changeset** - Document what changed and why
 
 4. **Commit with clean message** - Use format: "Cleanup @grammarly/{package-name}"
+
+## Automated Package Integrity Checks
+
+As of November 2025, the monorepo includes automated Nx executors that verify package integrity. These run automatically for all libraries (opt-out via tags).
+
+### Available Checks
+
+**`test-package-integrity`**
+- Verifies all files declared in package.json fields exist (main, module, types, typings)
+- Checks all exports field entries point to real files
+- Runs TypeScript compilation on .d.ts files in dist/
+- Automatically builds the package if dist/ is missing
+- Skip with tag: `"skip-package-integrity-check"`
+
+**`check-package-imports`**
+- Tests that the package can be imported as an ESM module
+- Runs: `node --input-type=module --eval "import './dist/...'"`
+- For packages expected to fail temporarily, use tag: `"expected-to-fail-package-imports"`
+- Warns if a tagged package starts passing (so you can remove the tag)
+- Skip with tag: `"skip-package-integrity-check"`
+
+### How It Works
+
+The checks are inferred automatically by `@grammarly/shared-nx-plugins` for all packages in `libs/` and `apps/`:
+
+1. Plugin reads package.json and project.json files
+2. Creates `test-package-integrity` and `check-package-imports` targets for all libraries
+3. Checks run after build completes (`dependsOn: ['build']`)
+4. Results are cached by Nx for performance
+5. CI runs these checks to prevent broken packages from being published
+
+### Implementation Details
+
+See `libs/shared-nx-plugins/src/`:
+- `index.ts:createVerificationTargets()` - Infers targets for all packages
+- `executors/test-package-integrity/executor.ts` - Verifies package structure
+- `executors/check-package-imports/executor.ts` - Tests ESM imports
+
+### Tags Reference
+
+Add these to `package.json` `nx.tags` array:
+- `"skip-package-integrity-check"` - Skip both checks entirely (use for special cases)
+- `"expected-to-fail-package-imports"` - Package is expected to fail import (temporary, remove when fixed)
 
 ## Key Learnings
 
@@ -273,6 +341,7 @@ Modernize build setup: migrate from Vite to Rollup with shared config, simplify 
 - **Simplified tsconfig** - Extends from shared config, less duplication
 - **Catalog protocol** - Centralized version management for external dependencies
 - **No separate project.json** - Tasks are defined via the `nx.tags` in package.json, so there's no need for a separate project.json file.
+- **Automated integrity checks** - Nx executors automatically verify package integrity for all libraries (can opt-out with `skip-package-integrity-check` tag)
 
 ### Patterns to Maintain
 
@@ -303,7 +372,8 @@ Use this checklist when modernizing a package:
 - [ ] Verify build passes
 - [ ] Verify tests pass
 - [ ] Verify lint passes
-- [ ] Check that the ESM import works
+- [ ] Run test-package-integrity check
+- [ ] Run check-package-imports check
 - [ ] Create changeset
 - [ ] Commit changes
 
@@ -326,9 +396,11 @@ pnpm install
 # ... add vitest imports, fix strict mode errors, etc.
 
 # 5. Verify everything works
-npx nx build string-utils   # Must pass
-npx nx test string-utils    # Must pass
-npx nx lint string-utils    # Must pass
+npx nx build string-utils                 # Must pass
+npx nx test string-utils                  # Must pass
+npx nx lint string-utils                  # Must pass
+npx nx test-package-integrity string-utils  # Must pass
+npx nx check-package-imports string-utils   # Must pass
 
 # 6. Create changeset
 pnpm changeset --empty
