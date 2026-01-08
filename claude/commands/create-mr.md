@@ -1,6 +1,7 @@
 ---
 allowed_tools:
   - Bash(git rev-parse:*)
+  - Bash(git branch:*)
   - Bash(git push:*)
   - Bash(git merge-target:*)
   - Bash(git log:*)
@@ -9,6 +10,8 @@ allowed_tools:
   - Bash(glab mr create:*)
   - Bash(glab repo view:*)
   - Bash(glab api:*)
+  - Bash(sed:*)
+  - Bash(xargs git rev-parse:*)
 ---
 
 # Create Merge Request
@@ -17,11 +20,13 @@ Create a GitLab merge request using the context already present in this Claude s
 
 ## Context
 
-- Current branch: !`git rev-parse --abbrev-ref HEAD`
-- Target branch: !`git merge-target 2>/dev/null || echo "main"`
-- Branch pushed to origin: !`git rev-parse --verify origin/$(git rev-parse --abbrev-ref HEAD) &>/dev/null && echo "yes" || echo "no"`
-- Commits in this branch: !`git log --pretty=format:"%H %s" $(git merge-target 2>/dev/null || echo "main")..HEAD`
-- Diff stat: !`git diff --stat $(git merge-target 2>/dev/null || echo "main")...HEAD`
+You have access to the following git information via the Claude Code session context:
+
+- Current branch `!git branch --show-current`
+- Recent commits from `git status`
+- You can check if branch is pushed by running `!git branch --show-current | sed 's|^|origin/|g' | xargs git rev-parse --verify`
+- You can get target branch by running `git merge-target`, or fall back to main: `!git merge-target || echo 'main'`
+- You can get commits via `git log` and diffs via `git diff`
 
 ## Usage
 
@@ -41,10 +46,6 @@ fi
 ### 2. Determine target branch
 
 Use `git merge-target` if available, otherwise fall back to `main`:
-
-```bash
-TARGET_BRANCH=$(git merge-target 2>/dev/null || echo "main")
-```
 
 ### 3. Generate title and description
 

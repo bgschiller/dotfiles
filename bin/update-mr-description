@@ -366,11 +366,13 @@ Based on the changes in this branch, please generate:
    - If using the template, fill out all sections appropriately
    - Be concise but thorough
 
-Please output in this exact format:
+IMPORTANT: You MUST output in this EXACT format. The first line MUST start with a # symbol followed by a space and the title:
+
 # Your Title Here
 
 Description content here in markdown format, following the template if provided.
 
+The first line MUST be the title prefixed with '# ' (hash space). Do not omit the # symbol.
 Output ONLY this format with no preamble, no code fences around the entire output, and no explanation."
 
 log_info "Prompt length: ${#PROMPT} characters"

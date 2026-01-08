@@ -1,0 +1,117 @@
+#!/usr/bin/env node
+// Custom Claude Code status line - cross-platform Node.js implementation
+
+const { execSync } = require('child_process');
+const path = require('path');
+
+// ANSI color codes (256-color mode)
+const RESET = '\x1b[0m';
+const CYAN = '\x1b[38;5;30m';      // Model
+const BLUE = '\x1b[38;5;26m';      // Context %, worktree
+const GRAY = '\x1b[38;5;188m';     // " / 200k"
+const GREEN = '\x1b[38;5;70m';     // Cost
+const PURPLE = '\x1b[38;5;96m';    // Git branch
+const END = '\x1b[39m';
+
+function getGitBranch(cwd) {
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+
+    // Detached HEAD returns "HEAD" - show short commit SHA instead
+    if (branch === 'HEAD') {
+      return execSync('git rev-parse --short HEAD', {
+        cwd,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe']
+      }).trim();
+    }
+    return branch;
+  } catch {
+    return 'no git';
+  }
+}
+
+function getWorktreeName(projectDir) {
+  try {
+    // Check if this is a git repo
+    execSync('git rev-parse --git-dir', {
+      cwd: projectDir,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    // Count worktrees
+    const worktreeOutput = execSync('git worktree list', {
+      cwd: projectDir,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    const worktreeCount = worktreeOutput.trim().split('\n').length;
+
+    // Only show worktree when there are multiple - use directory name
+    if (worktreeCount > 1) {
+      return path.basename(projectDir);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function main() {
+  let input = '';
+
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', chunk => { input += chunk; });
+  process.stdin.on('end', () => {
+    try {
+      const data = JSON.parse(input);
+
+      // Extract fields
+      const model = data.model?.display_name ?? 'Unknown';
+      const cost = data.cost?.total_cost_usd ?? 0;
+      const contextSize = data.context_window?.context_window_size ?? 200000;
+      const cwd = data.cwd ?? '.';
+      const projectDir = data.workspace?.project_dir ?? data.cwd ?? '.';
+
+      // Calculate context percentage
+      let contextPct;
+      const usage = data.context_window?.current_usage;
+      if (usage) {
+        const tokens = (usage.input_tokens ?? 0) +
+                       (usage.output_tokens ?? 0) +
+                       (usage.cache_creation_input_tokens ?? 0) +
+                       (usage.cache_read_input_tokens ?? 0);
+        contextPct = (tokens / contextSize) * 100;
+      } else {
+        const totalIn = data.context_window?.total_input_tokens ?? 0;
+        const totalOut = data.context_window?.total_output_tokens ?? 0;
+        contextPct = ((totalIn + totalOut) / contextSize) * 100;
+      }
+
+      // Format values
+      const contextPctFmt = contextPct.toFixed(1) + '%';
+      const costFmt = '$' + cost.toFixed(2);
+
+      // Get git info
+      const branch = getGitBranch(cwd);
+      const worktree = getWorktreeName(projectDir);
+
+      // Build output - omit worktree section if null
+      const worktreePart = worktree ? ` | ${BLUE}𖠰 ${worktree}${END}` : '';
+      const output = `${RESET}${CYAN}${model}${END} | ${BLUE}${contextPctFmt}${END}${GRAY} / 200k${END} | ${GREEN}${costFmt}${END} | ${PURPLE}⎇ ${branch}${END}${worktreePart}`;
+
+      // Replace spaces with non-breaking spaces
+      process.stdout.write(output.replace(/ /g, '\u00a0'));
+    } catch (err) {
+      process.stderr.write(`Error: ${err.message}\n`);
+      process.exit(1);
+    }
+  });
+}
+
+main();

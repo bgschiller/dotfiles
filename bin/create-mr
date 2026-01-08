@@ -100,12 +100,20 @@ if [ -z "$TITLE" ]; then
     exit 1
   fi
   log_info "Using first line as title (no # found)"
+
+  # If we used first line as title, description is everything after first line
+  DESCRIPTION=$(echo "$MR_CONTENT" | tail -n +2 | sed '/./,$!d')
+else
+  log_info "Found markdown heading for title"
+
+  # If we found a # heading, description is everything after that line
+  # Find line number of the heading and extract everything after it
+  HEADING_LINE_NUM=$(echo "$MR_CONTENT" | grep -n "^# " | head -1 | cut -d: -f1)
+  DESCRIPTION=$(echo "$MR_CONTENT" | tail -n +$((HEADING_LINE_NUM + 1)) | sed '/./,$!d')
 fi
+
 log_info "Parsed title: $TITLE"
 
-# Extract description (everything after the title line)
-# Skip first line (the title), then trim leading blank lines
-DESCRIPTION=$(echo "$MR_CONTENT" | tail -n +2 | sed '/./,$!d')
 if [ -z "$DESCRIPTION" ]; then
   log_error "Failed to parse description from output"
   exit 1

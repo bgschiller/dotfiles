@@ -128,6 +128,23 @@ function clipbox() {
   aws --profile clipbox-writer s3 cp $1 s3://brianschiller-clipbox/$UPLOAD_NAME --metadata-directive REPLACE --content-type $(file --mime-type $1 | cut -f2 -d:) --acl public-read
 }
 
+function claude() {
+  # Allow --print/-p flags to work in vscode (non-interactive use)
+  local allow_vscode=false
+  for arg in "$@"; do
+    if [[ "$arg" == "--print" || "$arg" == "-p" ]]; then
+      allow_vscode=true
+      break
+    fi
+  done
+
+  if [[ "$TERM_PROGRAM" == "vscode" && "$allow_vscode" == "false" ]]; then
+    echo "⚠️  Claude doesn't work well in VS Code's terminal. Please use iTerm2, Terminal.app, or another proper terminal."
+    return 1
+  fi
+  command claude "$@"
+}
+
 
 # pnpm
 export PNPM_HOME="/Users/brian/Library/pnpm"
@@ -151,11 +168,10 @@ eval "$(pyenv init -)"
 eval "$(mcfly init zsh)"
 
 
-# Awesome Claude Code initialization
+# Awesome Claude Code initialization (PATH only, update check disabled for performance)
 AWESOME_CLAUDE_CODE_DIR="/Users/brian/.awesome-claude-code/repo"
-if [ -f "$AWESOME_CLAUDE_CODE_DIR/scripts/shell-init.sh" ]; then
-    source "$AWESOME_CLAUDE_CODE_DIR/scripts/shell-init.sh" "$AWESOME_CLAUDE_CODE_DIR"
-fi
+export PATH="$PATH:$AWESOME_CLAUDE_CODE_DIR/awesome-claude/bin"
+# Auto-update disabled - run manually with: ~/.awesome-claude-code/repo/scripts/update.sh
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm

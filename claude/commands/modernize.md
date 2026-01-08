@@ -30,12 +30,7 @@ Replace the entire package.json with modernized structure:
   ```json
   "nx": {
     "name": "package-name",
-    "tags": ["vitest", "eslint", "release"],
-    "targets": {
-      "build": {
-        "executor": "@nx/rollup:rollup"
-      }
-    }
+    "tags": ["vitest", "eslint", "release","rollup"]
   }
   ```
 
@@ -47,21 +42,9 @@ The standalone `project.json` file is replaced by the `nx` field in `package.jso
 rm libs/{package-name}/project.json
 ```
 
-### 3. Create rollup.config.mts
+### 3. ~~Create rollup.config.mts~~ No longer necessary
 
-Create a minimal rollup config that uses shared configuration:
-
-```typescript
-import { createRollupConfig, readPackageJsonSync } from '@grammarly/shared-config'
-import path from 'node:path'
-
-export default function updateRollupConfig() {
-  return createRollupConfig({
-    projectRoot: import.meta.dirname,
-    packageJson: readPackageJsonSync(path.join(import.meta.dirname, 'package.json')),
-  })
-}
-```
+Instead of creating a rollup.config.mts, we're using the pattern from 7c2174bc4a where the config is created while inferring tasks.
 
 ### 4. Replace tsconfig.json
 
@@ -73,6 +56,8 @@ Replace the entire tsconfig.json with a minimal version:
   "include": ["src"]
 }
 ```
+
+It's possible you'll need to use the `@grammarly/tsconfig/node` or `@grammarly/tsconfig/browser` variants if the package relies on node or browser types.
 
 ### 5. Delete extra TypeScript configs
 
@@ -239,7 +224,7 @@ Modernize build setup: migrate from Vite to Rollup with shared config, simplify 
 
 **"Missing file for 'main'":**
 - Check that the build output exists in dist/
-- Verify rollup.config.mts is configured correctly
+- Verify entry points are defined in the package.json's "module", "main", and "exports" fields.
 - Run build again: `npx nx build {package-name}`
 
 **"TypeScript compilation check failed":**
@@ -279,43 +264,6 @@ Modernize build setup: migrate from Vite to Rollup with shared config, simplify 
 3. **Create meaningful changeset** - Document what changed and why
 
 4. **Commit with clean message** - Use format: "Cleanup @grammarly/{package-name}"
-
-## Automated Package Integrity Checks
-
-As of November 2025, the monorepo includes automated Nx executors that verify package integrity. These run automatically for all libraries (opt-out via tags).
-
-### Available Checks
-
-**`test-package-integrity`**
-- Verifies all files declared in package.json fields exist (main, module, types, typings)
-- Checks all exports field entries point to real files
-- Runs TypeScript compilation on .d.ts files in dist/
-- Automatically builds the package if dist/ is missing
-- Skip with tag: `"skip-package-integrity-check"`
-
-**`check-package-imports`**
-- Tests that the package can be imported as an ESM module
-- Runs: `node --input-type=module --eval "import './dist/...'"`
-- For packages expected to fail temporarily, use tag: `"expected-to-fail-package-imports"`
-- Warns if a tagged package starts passing (so you can remove the tag)
-- Skip with tag: `"skip-package-integrity-check"`
-
-### How It Works
-
-The checks are inferred automatically by `@grammarly/shared-nx-plugins` for all packages in `libs/` and `apps/`:
-
-1. Plugin reads package.json and project.json files
-2. Creates `test-package-integrity` and `check-package-imports` targets for all libraries
-3. Checks run after build completes (`dependsOn: ['build']`)
-4. Results are cached by Nx for performance
-5. CI runs these checks to prevent broken packages from being published
-
-### Implementation Details
-
-See `libs/shared-nx-plugins/src/`:
-- `index.ts:createVerificationTargets()` - Infers targets for all packages
-- `executors/test-package-integrity/executor.ts` - Verifies package structure
-- `executors/check-package-imports/executor.ts` - Tests ESM imports
 
 ### Tags Reference
 
@@ -417,6 +365,7 @@ The canonical example of this modernization is commit `e113533f0d`:
 - Branch: cleanup-pkg-2
 - Package: @grammarly/array-utils
 - Files changed: -170 lines added, +79 lines removed
+- note that this predates the removal of rollup.config.mts. It includes a rollup config, but we'll want to skip that step.
 
 Review this commit for exact patterns and formatting.
 
