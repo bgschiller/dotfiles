@@ -7,3 +7,7 @@ claude/settings.json
 claude/statsig
 claude/todos
 claude/shell-snapshots
+claude/cache/
+claude/plans/
+claude/plugins/
+claude/stats-cache.json
