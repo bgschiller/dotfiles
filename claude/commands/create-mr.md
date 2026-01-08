@@ -36,12 +36,7 @@ When the user invokes this command (e.g., `/create-mr`), follow these steps to c
 
 ### 1. Check if branch is pushed to origin
 
-```bash
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if ! git rev-parse --verify "origin/$CURRENT_BRANCH" &>/dev/null; then
-  git push -u origin "$CURRENT_BRANCH"
-fi
-```
+Check if the current branch exists on origin. If not, push it with `-u` to set up tracking.
 
 ### 2. Determine target branch
 
@@ -65,70 +60,44 @@ To find the merge request template, check these locations:
 - `.gitlab/merge_request_templates/default.md`
 - Any other `.md` files in `.gitlab/merge_request_templates/`
 
-To get commit information:
-
-```bash
-# Get commit hashes
-git log --pretty=format:"%H" "$TARGET_BRANCH".."$CURRENT_BRANCH"
-
-# For each commit, get details:
-git log -1 --pretty=format:"%s" "$commit"  # subject
-git log -1 --pretty=format:"%b" "$commit"  # body
-git show --pretty=format:"" "$commit"       # diff
-```
-
-Also consider the full diff:
-
-```bash
-git diff --stat "$TARGET_BRANCH"..."$CURRENT_BRANCH"
-git diff "$TARGET_BRANCH"..."$CURRENT_BRANCH"
-```
+Get commit information from the target branch to current branch using `git log` and `git show` to see commit messages, bodies, and diffs. Also review the full diff between target and current branch using `git diff`.
 
 **Important**: Use the conversation context in this Claude session to inform the MR description. The commits and changes have likely been discussed, and that context should be incorporated into the description.
 
-### 4. Present MR content for approval
+### 4. Open MR content in editor
 
-Present the title and description to Brian for approval in a format he can easily review and edit if needed. Ask if he wants to proceed with creating the MR.
+Write the generated title and description to a temporary file **in the current working directory** (not `/tmp`) in this format:
+
+```
+# Title here
+
+Description starts here
+and continues...
+```
+
+Example filename: `mr-<branch-name>.md` where `<branch-name>` is sanitized (e.g., `mr-assistant-ui-kit-coverage.md`)
+
+Open the file using `code --wait`. After Brian saves and closes the editor:
+
+- Parse the title from the first line (the line starting with `#`)
+- Parse the description from everything after the first line
+- If the file is empty or contains only whitespace, abort MR creation
+- Delete the temporary MR file after successfully parsing it
+- Otherwise proceed to step 5 with the edited title and description
 
 ### 5. Create the merge request
 
-Once approved, create the MR:
+Create the MR using `glab mr create` with the edited title, description, target branch, and `--remove-source-branch --yes` flags.
 
-```bash
-glab mr create \
-  --title "$TITLE" \
-  --description "$DESCRIPTION" \
-  --target-branch "$TARGET_BRANCH" \
-  --remove-source-branch \
-  --yes
-```
-
-Extract the MR number from the output:
-
-```bash
-MR_URL=$(echo "$OUTPUT" | grep -oE 'https://[^ ]+' | head -1)
-MR_NUMBER=$(echo "$MR_URL" | grep -oE '[0-9]+$')
-```
+Extract the MR URL and MR number from the output for use in the next steps.
 
 ### 6. Create dependency on parent MR (if applicable)
 
 If the target branch is not `main`, look for a parent MR:
 
-```bash
-# Get project ID
-PROJECT_ID=$(glab repo view --output json 2>/dev/null | jq -r .id)
-
-# Find MR where source branch is our target branch
-PARENT_MR_DATA=$(glab api "projects/$PROJECT_ID/merge_requests?source_branch=$TARGET_BRANCH&state=opened" 2>&1)
-
-# Extract parent MR info
-PARENT_MR_FIRST=$(echo "$PARENT_MR_DATA" | jq '.[0]' 2>/dev/null)
-PARENT_MR_IID=$(echo "$PARENT_MR_FIRST" | jq -r .iid)
-PARENT_MR_ID=$(echo "$PARENT_MR_FIRST" | jq -r .id)
-
-# Create blocking relationship: parent MR blocks this MR
-glab api -X POST "projects/$PROJECT_ID/merge_requests/$MR_NUMBER/blocks?blocking_merge_request_id=$PARENT_MR_ID"
-```
+- Get the project ID using `glab repo view`
+- Find any open MR where the source branch matches our target branch using `glab api`
+- If found, create a blocking relationship where the parent MR blocks this MR using `glab api -X POST projects/$PROJECT_ID/merge_requests/$MR_NUMBER/blocks?blocking_merge_request_id=$PARENT_MR_ID`
 
 ### 7. Generate Slack review request
 

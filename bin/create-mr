@@ -69,17 +69,23 @@ log_info "Target branch: $TARGET_BRANCH"
 # Generate title and description using update-mr-description
 log_step "Generating MR title and description..."
 log_info "Running: $UPDATE_MR_DESCRIPTION --print-only $CURRENT_BRANCH"
-MR_CONTENT=$("$UPDATE_MR_DESCRIPTION" --print-only "$CURRENT_BRANCH")
+
+# Save raw output to a debug file for troubleshooting
+DEBUG_FILE="/tmp/mr-description-debug-$(date +%Y%m%d-%H%M%S).md"
+MR_CONTENT=$("$UPDATE_MR_DESCRIPTION" --print-only "$CURRENT_BRANCH" | tee "$DEBUG_FILE")
 MR_CONTENT_EXIT_CODE=$?
 log_info "update-mr-description exit code: $MR_CONTENT_EXIT_CODE"
+log_info "Raw output saved to: $DEBUG_FILE"
 
 if [ $MR_CONTENT_EXIT_CODE -ne 0 ]; then
   log_error "update-mr-description failed with exit code $MR_CONTENT_EXIT_CODE"
-  log_error "Output: ${MR_CONTENT:0:500}"
+  log_error "Output saved to: $DEBUG_FILE"
+  log_error "First 500 chars: ${MR_CONTENT:0:500}"
   exit 1
 fi
 if [ -z "$MR_CONTENT" ]; then
   log_error "Failed to generate MR content (empty output)"
+  log_error "Debug file: $DEBUG_FILE"
   exit 1
 fi
 
@@ -96,7 +102,8 @@ if [ -z "$TITLE" ]; then
   TITLE=$(echo "$MR_CONTENT" | head -1 | sed 's/^[[:space:]]*//')
   if [ -z "$TITLE" ]; then
     log_error "Failed to parse title from output"
-    log_error "Output: ${MR_CONTENT:0:500}"
+    log_error "Debug file: $DEBUG_FILE"
+    log_error "First 500 chars: ${MR_CONTENT:0:500}"
     exit 1
   fi
   log_info "Using first line as title (no # found)"
@@ -116,6 +123,7 @@ log_info "Parsed title: $TITLE"
 
 if [ -z "$DESCRIPTION" ]; then
   log_error "Failed to parse description from output"
+  log_error "Debug file: $DEBUG_FILE"
   exit 1
 fi
 log_info "Parsed description (${#DESCRIPTION} characters)"
@@ -145,7 +153,9 @@ log_info "Editor closed"
 EDITOR_OUTPUT=$(grep -v "^//" "$DESCRIPTION_FILE" || true)
 if [ -z "$EDITOR_OUTPUT" ]; then
   log_warn "MR creation cancelled due to empty file"
-  rm -f "$DESCRIPTION_FILE"
+  log_info "Debug files preserved:"
+  log_info "  Raw output: $DEBUG_FILE"
+  log_info "  Editor file: $DESCRIPTION_FILE"
   exit 1
 fi
 
@@ -161,14 +171,14 @@ DESCRIPTION=$(echo "$EDITOR_OUTPUT" | tail -n +2 | sed '/./,$!d')
 
 if [ -z "$TITLE" ]; then
   log_error "Title is empty after editing"
-  rm -f "$DESCRIPTION_FILE"
+  log_error "Editor file preserved at: $DESCRIPTION_FILE"
   exit 1
 fi
 log_info "Final title: $TITLE"
 log_info "Final description length: ${#DESCRIPTION} characters"
 
-# Clean up temp file
-rm -f "$DESCRIPTION_FILE"
+# Note: Keep DESCRIPTION_FILE around until MR is successfully created
+log_info "Editor file: $DESCRIPTION_FILE (will be cleaned up after MR creation)"
 
 # Create the merge request
 log_step "Creating merge request..."
@@ -185,6 +195,9 @@ if [ $MR_EXIT_CODE -ne 0 ]; then
   log_error "glab mr create failed with exit code $MR_EXIT_CODE"
   log_error "Output:"
   echo "$MR_OUTPUT" >&2
+  log_error "Debug files preserved:"
+  log_error "  Raw output: $DEBUG_FILE"
+  log_error "  Editor file: $DESCRIPTION_FILE"
   exit 1
 fi
 
@@ -198,10 +211,17 @@ if [ -z "$MR_NUMBER" ]; then
   log_error "Full glab output:"
   echo "$MR_OUTPUT" >&2
   log_error "Extracted URL: '$MR_URL'"
+  log_error "Debug files preserved:"
+  log_error "  Raw output: $DEBUG_FILE"
+  log_error "  Editor file: $DESCRIPTION_FILE"
   exit 1
 fi
 
 log_info "Created MR !$MR_NUMBER: $MR_URL"
+
+# Clean up temp files now that MR is successfully created
+rm -f "$DESCRIPTION_FILE" "$DEBUG_FILE"
+log_info "Cleaned up temporary files"
 
 # Get GitLab host and project from origin URL
 ORIGIN_URL=$(git remote get-url origin)

@@ -16,6 +16,7 @@
         git status -s | cut -f2 -d\" \" | xargs rm -rf'"
     merge-target = "!f() { git query --branches '(ancestors(HEAD) & parents(stack())) - HEAD' | tail -n1; }; f"
     create-mr = "!f() { git push -o merge_request.create -o merge_request.target=\"$(git merge-target)\" -o merge_request.title=\"$(git show -s --format=%s HEAD)\"; }; f"
+    pf = push --force-with-lease
 [core]
     excludesfile = ~/.gitignore_global
     pager = delta

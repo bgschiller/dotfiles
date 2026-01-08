@@ -366,14 +366,16 @@ Based on the changes in this branch, please generate:
    - If using the template, fill out all sections appropriately
    - Be concise but thorough
 
-IMPORTANT: You MUST output in this EXACT format. The first line MUST start with a # symbol followed by a space and the title:
+IMPORTANT: You MUST output in this EXACT format - a fenced markdown code block containing the title and description:
 
+\`\`\`markdown
 # Your Title Here
 
 Description content here in markdown format, following the template if provided.
+\`\`\`
 
-The first line MUST be the title prefixed with '# ' (hash space). Do not omit the # symbol.
-Output ONLY this format with no preamble, no code fences around the entire output, and no explanation."
+The first line inside the code block MUST be the title prefixed with '# ' (hash space).
+Output ONLY this fenced markdown block with no preamble or explanation before or after it."
 
 log_info "Prompt length: ${#PROMPT} characters"
 log_info "Calling claude --print (this may take a moment)..."
@@ -394,15 +396,34 @@ if [ -z "$CLAUDE_OUTPUT" ]; then
   exit 1
 fi
 
-# Remove leading and trailing triple-backtick fenced code blocks if present
-# Claude sometimes wraps the response in ```markdown ... ```
+# Extract content from fenced code block if present
+# We expect the output to be in ```markdown ... ``` format
+# But we'll be forgiving and handle various formats
 if [[ "$CLAUDE_OUTPUT" =~ ^\`\`\`[a-z]*$'\n' ]]; then
+  log_info "Detected fenced code block, extracting content..."
   # Remove first line if it starts with ```
   CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | tail -n +2)
+  # Remove last line if it ends with ```
+  if [[ "$CLAUDE_OUTPUT" =~ $'\n'\`\`\`$ ]] || [[ "$CLAUDE_OUTPUT" =~ \`\`\`$ ]]; then
+    CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | sed '$d')
+  fi
+  log_info "Successfully extracted content from fenced block"
 fi
-if [[ "$CLAUDE_OUTPUT" =~ $'\n'\`\`\`$ ]]; then
-  # Remove last line if it's just ``` (macOS compatible)
-  CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | sed '$d')
+
+# Additional cleanup: remove any stray backticks at the end
+CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | sed 's/```[[:space:]]*$//')
+
+# Trim leading/trailing whitespace (including blank lines)
+# First remove leading empty lines
+CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | sed '/./,$!d')
+# Then trim trailing whitespace from the end
+CLAUDE_OUTPUT=$(echo "$CLAUDE_OUTPUT" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+# Validate that we have content starting with # (title)
+if ! [[ "$CLAUDE_OUTPUT" =~ ^#[[:space:]] ]]; then
+  log_warn "Output doesn't start with '# ' as expected"
+  log_info "First 200 chars: ${CLAUDE_OUTPUT:0:200}"
+  log_warn "Proceeding anyway - content will be editable"
 fi
 
 # If print-only mode, just output the complete result (title + description) and exit

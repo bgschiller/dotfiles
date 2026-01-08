@@ -100,7 +100,31 @@ export N_PREFIX=$HOME/.n
 
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
-[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+
+# Lazy-load rvm (saves ~0.23s on shell startup)
+rvm() {
+  unset -f rvm ruby gem irb
+  [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+  rvm "$@"
+}
+
+ruby() {
+  unset -f rvm ruby gem irb
+  [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+  ruby "$@"
+}
+
+gem() {
+  unset -f rvm ruby gem irb
+  [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+  gem "$@"
+}
+
+irb() {
+  unset -f rvm ruby gem irb
+  [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+  irb "$@"
+}
 
 eval "$(direnv hook zsh)"
 
@@ -161,7 +185,25 @@ esac
 export PATH="$N_PREFIX/bin:$PATH"
 
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
-eval "$(pyenv init -)"
+
+# Lazy-load pyenv (saves ~0.43s on shell startup)
+pyenv() {
+  unset -f pyenv python python3
+  eval "$(command pyenv init -)"
+  pyenv "$@"
+}
+
+python() {
+  unset -f pyenv python python3
+  eval "$(command pyenv init -)"
+  python "$@"
+}
+
+python3() {
+  unset -f pyenv python python3
+  eval "$(command pyenv init -)"
+  python3 "$@"
+}
 
 #eval "$(starship init zsh)"
 
@@ -174,5 +216,6 @@ export PATH="$PATH:$AWESOME_CLAUDE_CODE_DIR/awesome-claude/bin"
 # Auto-update disabled - run manually with: ~/.awesome-claude-code/repo/scripts/update.sh
 
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+

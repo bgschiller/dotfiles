@@ -16,9 +16,18 @@ Replace the entire package.json with modernized structure:
 - Add `"type": "module"`
 - Add `"author": "Grammarly, Inc."` and `"license": "UNLICENSED"`
 - Change `"main"` from `"./dist/index.js"` to `"./dist/index.cjs"`
-- In `"exports"`, change `"require"` paths from `.js` to `.cjs`
+- Change `"module"` from `"./dist/index.js"` to `"./dist/index.mjs"`
+- In `"exports"`, change:
+  - `"require"` paths from `.js` to `.cjs`
+  - `"import"` and `"default"` paths from `.js` to `.mjs`
 - Add `"sideEffects": false` for better tree-shaking
 - Convert all dependencies to use `workspace:^` or `catalog:` protocols
+  - **Priority order**:
+    1. Use `workspace:^` for all internal `@grammarly/*` packages
+    2. Use `catalog:` for external packages already in the catalog
+    3. Add external packages to the catalog if not yet present
+    4. If switching to the catalog version causes issues, it's acceptable to leave the version string in package.json temporarily
+  - Use the version from the original package.json when adding new entries to the catalog
 - Add to `devDependencies`:
   ```json
   "@grammarly/shared-config": "workspace:^",
@@ -97,19 +106,35 @@ This is required for ESM builds which don't support directory imports.
 
 ### 10. Update test files for Vitest
 
-If migrating from Jest to Vitest:
+**IMPORTANT: We use explicit imports for all Vitest globals. Do NOT use vitest globals mode.**
 
-**Add Vitest imports:**
-```typescript
-import { describe, expect, it } from 'vitest'
-```
+For each `.spec.ts` or `.test.ts` file:
 
-**Replace snapshot matchers:**
-- `toMatchSnapshot()` → `toMatchInlineSnapshot()` (with inline snapshot string)
+1. **Add Vitest imports at the top of the file:**
+   - Analyze what vitest globals are used in the file (describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll, vitest, etc.)
+   - Add an import statement with only the globals that are actually used:
+   ```typescript
+   import { describe, expect, it, vi } from 'vitest'
+   ```
 
-**Update other Jest-specific APIs:**
-- Check for Jest-specific globals that need explicit imports
-- Update any Jest-specific matchers to Vitest equivalents
+2. **Common imports by use case:**
+   - Basic tests: `import { describe, expect, it } from 'vitest'`
+   - Tests with spies/mocks: Add `vi`
+   - Tests with setup/teardown: Add `beforeEach`, `afterEach`, `beforeAll`, `afterAll`
+   - Tests using fake timers or other vitest APIs: Add `vitest`
+
+3. **Replace snapshot matchers:**
+   - `toMatchSnapshot()` → `toMatchInlineSnapshot()` (with inline snapshot string)
+
+4. **Update other Jest-specific APIs:**
+   - Check for Jest-specific matchers and replace with Vitest equivalents
+   - Ensure all test utility functions are imported explicitly
+
+**Why explicit imports?**
+- Clearer code - no magic globals
+- Better IDE support and type checking
+- Easier to understand test dependencies
+- Standard modern JavaScript practice
 
 ### 11. Fix TypeScript strict mode errors
 
@@ -219,6 +244,18 @@ Modernize build setup: migrate from Vite to Rollup with shared config, simplify 
 
 **"Cannot find '@grammarly/tsconfig'":**
 - Run `pnpm install` to link workspace dependencies
+
+**Circular dependency warnings:**
+- Rollup will warn about circular dependencies in the build output
+- To fix circular dependencies, change type-only imports from:
+  ```ts
+  import { type Something } from './something'
+  ```
+  to:
+  ```ts
+  import type { Something } from './something'
+  ```
+- This tells TypeScript/Rollup that this is a type-only import and won't create a runtime circular dependency
 
 ### Package Integrity Errors
 
