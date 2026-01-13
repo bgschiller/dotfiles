@@ -37,13 +37,6 @@ function getGitBranch(cwd) {
 
 function getWorktreeName(projectDir) {
   try {
-    // Check if this is a git repo
-    execSync('git rev-parse --git-dir', {
-      cwd: projectDir,
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
     // Count worktrees
     const worktreeOutput = execSync('git worktree list', {
       cwd: projectDir,
@@ -52,9 +45,15 @@ function getWorktreeName(projectDir) {
     });
     const worktreeCount = worktreeOutput.trim().split('\n').length;
 
-    // Only show worktree when there are multiple - use directory name
+    // Only show worktree when there are multiple
     if (worktreeCount > 1) {
-      return path.basename(projectDir);
+      // Get the git repo root and use its basename
+      const repoRoot = execSync('git rev-parse --show-toplevel', {
+        cwd: projectDir,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe']
+      }).trim();
+      return path.basename(repoRoot);
     }
     return null;
   } catch {
