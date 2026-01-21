@@ -1,24 +1,15 @@
 # Add deno completions to search path
 if [[ ":$FPATH:" != *":/Users/brian/.zsh/completions:"* ]]; then export FPATH="/Users/brian/.zsh/completions:$FPATH"; fi
-# If you come from bash you might have to change your $PATH.
-# export PATH=$HOME/bin:/usr/local/bin:$PATH
 
-# Path to your oh-my-zsh installation.
-export ZSH=$HOME/.oh-my-zsh
+# Initialize completions (cached - only rebuild once per day)
+autoload -Uz compinit
+if [[ -n ~/.zcompdump(#qN.mh+24) ]]; then
+  compinit
+else
+  compinit -C
+fi
 
-# Set name of the theme to load. Optionally, if you set this to "random"
-# it'll load a random theme each time that oh-my-zsh is loaded.
-# See https://github.com/robbyrussell/oh-my-zsh/wiki/jThemes
-ZSH_THEME="robbyrussell"
 BAT_THEME="OneHalfDark"
-
-# Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
-# Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
-# Example format: plugins=(rails git textmate ruby lighthouse)
-# Add wisely, as too many plugins slow down shell startup.
-plugins=(git pass command-not-found) 
-
-source $ZSH/oh-my-zsh.sh
 
 # extended_glob makes ^ a special character, which interferes with git reset HEAD^
 unsetopt extended_glob
@@ -186,7 +177,13 @@ esac
 
 export PATH="$N_PREFIX/bin:$PATH"
 
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+# Lazy-load sdkman
+export SDKMAN_DIR="$HOME/.sdkman"
+sdk() {
+  unset -f sdk
+  [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
+  sdk "$@"
+}
 
 # Lazy-load pyenv (saves ~0.43s on shell startup)
 pyenv() {
@@ -207,7 +204,7 @@ python3() {
   python3 "$@"
 }
 
-#eval "$(starship init zsh)"
+eval "$(starship init zsh)"
 
 eval "$(mcfly init zsh)"
 
@@ -217,7 +214,6 @@ AWESOME_CLAUDE_CODE_DIR="/Users/brian/.awesome-claude-code/repo"
 export PATH="$PATH:$AWESOME_CLAUDE_CODE_DIR/awesome-claude/bin"
 # Auto-update disabled - run manually with: ~/.awesome-claude-code/repo/scripts/update.sh
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+# fnm (Fast Node Manager) - per-shell node versions, reads .nvmrc files
+eval "$(fnm env --use-on-cd)"
 
