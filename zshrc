@@ -80,6 +80,8 @@ function boop () {
 [ -f /usr/share/fzf/shell/key-bindings.zsh ] && source /usr/share/fzf/shell/key-bindings.zsh
 [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+[ -f "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ] && alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
 
 alias jl='jq . -C | less -R'
 

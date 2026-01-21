@@ -18,6 +18,7 @@
       if: "ver"
     ~/.config/kitty:
     ~/.clang-format: clang-format
+    ~/.tmux.conf: tmux.conf
     ~/.config/ccstatusline:
     ~/.config/evanhahn-sfx:
     ~/.config/espanso/default.yml:
