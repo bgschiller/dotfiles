@@ -9,6 +9,11 @@ def is_window_vim(window, vim_id):
     return any(re.search(vim_id, p['cmdline'][0] if len(p['cmdline']) else '', re.I) for p in fp)
 
 
+def is_window_tmux(window):
+    fp = window.child.foreground_processes
+    return any(re.search(r'\btmux\b', p['cmdline'][0] if len(p['cmdline']) else '', re.I) for p in fp)
+
+
 def encode_key_mapping(window, key_mapping):
     mods, key = parse_shortcut(key_mapping)
     event = KeyEvent(
@@ -39,7 +44,7 @@ def handle_result(args, result, target_window_id, boss):
 
     if window is None:
         return
-    if is_window_vim(window, vim_id):
+    if is_window_vim(window, vim_id) or is_window_tmux(window):
         for keymap in key_mapping.split(">"):
             encoded = encode_key_mapping(window, keymap)
             window.write_to_child(encoded)
