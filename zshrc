@@ -204,6 +204,15 @@ python3() {
   python3 "$@"
 }
 
+# Word movement key bindings (Option+arrows)
+bindkey "^[[1;3C" forward-word       # Option+Right
+bindkey "^[[1;3D" backward-word      # Option+Left
+bindkey "^[[1;4C" forward-word       # Shift+Option+Right
+bindkey "^[[1;4D" backward-word      # Shift+Option+Left
+# Alt+b/f style (some terminals send these)
+bindkey "^[b" backward-word
+bindkey "^[f" forward-word
+
 eval "$(starship init zsh)"
 
 eval "$(mcfly init zsh)"
