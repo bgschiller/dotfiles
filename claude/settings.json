@@ -91,7 +91,7 @@
     "ask": [],
     "defaultMode": "acceptEdits"
   },
-  "model": "opus",
+  "model": "sonnet[1m]",
   "hooks": {
     "Stop": [
       {
@@ -108,5 +108,6 @@
     "type": "command",
     "command": "/Users/brian/bin/claude-statusline",
     "padding": 0
-  }
+  },
+  "alwaysThinkingEnabled": false
 }
