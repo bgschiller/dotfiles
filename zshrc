@@ -212,6 +212,9 @@ bindkey "^[[1;4D" backward-word      # Shift+Option+Left
 # Alt+b/f style (some terminals send these)
 bindkey "^[b" backward-word
 bindkey "^[f" forward-word
+# Emacs-style line navigation (explicit, fixes tmux issues)
+bindkey "^A" beginning-of-line
+bindkey "^E" end-of-line
 
 eval "$(starship init zsh)"
 
