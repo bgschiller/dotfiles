@@ -19,6 +19,7 @@
     ~/.config/kitty:
     ~/.clang-format: clang-format
     ~/.tmux.conf: tmux.conf
+    ~/.config/tmux:
     ~/.config/ccstatusline:
     ~/.config/evanhahn-sfx:
     ~/.config/espanso/default.yml:
