@@ -23,7 +23,7 @@ The `glab` CLI is GitLab's official command-line tool. Key commands:
 
 ```bash
 # Create MR with title and description
-glab mr create --title "Title" --description "Body" --target-branch main --remove-source-branch --yes
+glab mr create --title "Title" --description "Body" --target-branch main --remove-source-branch --squash-before-merge --yes
 
 # View project info (includes project ID)
 glab repo view
@@ -126,6 +126,7 @@ glab mr create \
   --description "Description from editor" \
   --target-branch "$TARGET" \
   --remove-source-branch \
+  --squash-before-merge \
   --yes
 ```
 

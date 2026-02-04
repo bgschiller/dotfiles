@@ -188,6 +188,7 @@ MR_OUTPUT=$(glab mr create \
   --description "$DESCRIPTION" \
   --target-branch "$TARGET_BRANCH" \
   --remove-source-branch \
+  --squash-before-merge \
   --yes 2>&1)
 MR_EXIT_CODE=$?
 

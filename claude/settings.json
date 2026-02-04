@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(glab mr list:*)",
       "Bash(~/.claude/skills/create-mr/scripts/glab-mr-helper.sh:*)",
       "Bash(CI=true npx nx test:*)",
       "Bash(awk:*)",
@@ -91,7 +92,7 @@
     "ask": [],
     "defaultMode": "acceptEdits"
   },
-  "model": "sonnet[1m]",
+  "model": "opus",
   "hooks": {
     "Stop": [
       {
