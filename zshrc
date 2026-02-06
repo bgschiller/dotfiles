@@ -14,6 +14,10 @@ BAT_THEME="OneHalfDark"
 # extended_glob makes ^ a special character, which interferes with git reset HEAD^
 unsetopt extended_glob
 
+# Less options: -R=raw control chars
+# Note: removed -X to allow alternate screen, which enables tmux-better-mouse-mode scrolling
+export LESS="-R"
+
 
 # add $HOME/bin to path if not present
 [[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
