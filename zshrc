@@ -42,6 +42,7 @@ export LESS="-R"
 [[ ":$PATH:" != *":$HOME/.composer/vendor/bin:"* ]] && export PATH=":$HOME/.composer/vendor/bin:$PATH"
 
 [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && export PATH=":$HOME/.cargo/bin:$PATH"
+[[ ":PATH:" != *":/opt/nvim-linux-x86_64/bin:"* ]] && [[ -d /opt/nvim-linux-x86_64/bin ]] && export PATH="$PATH:/opt/nvim-linux-x86_64/bin"
 
 [[ -d /usr/share/elasticsearch/bin/ ]] && [[ ":$PATH:" != *":/usr/share/elasticsearch/bin/:"* ]] && export PATH=":/usr/share/elasticsearch/bin/:$PATH"
 
@@ -125,6 +126,15 @@ irb() {
 
 eval "$(direnv hook zsh)"
 
+# Zsh history (essential for McFly)
+export HISTFILE=~/.zsh_history
+export HISTSIZE=10000
+export SAVEHIST=10000
+setopt INC_APPEND_HISTORY
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+setopt HIST_IGNORE_SPACE
+setopt HIST_REDUCE_BLANKS
 
 function __choose_node_package_manager__() {
   if [ -f "package-lock.json" ]; then
