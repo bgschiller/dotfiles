@@ -92,14 +92,14 @@
     "ask": [],
     "defaultMode": "acceptEdits"
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "afplay /System/Library/Sounds/Glass.aiff"
+            "command": "command -v afplay > /dev/null && afplay /System/Library/Sounds/Glass.aiff || true"
           }
         ]
       }

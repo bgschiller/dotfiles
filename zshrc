@@ -246,6 +246,12 @@ eval "$(fnm env --use-on-cd)"
 # I more frequently use ! as a literal than as a control character for searching history
 setopt NO_BANG_HIST
 
+# Auto-start tmux on SSH connections
+if [[ -n "$SSH_CONNECTION" ]] && command -v tmux &> /dev/null && [[ -z "$TMUX" ]]; then
+  # Try to attach to existing session, or create new one
+  tmux attach-session -t default || tmux new-session -s default
+fi
+
 # fnm
 FNM_PATH="/home/brian/.local/share/fnm"
 if [ -d "$FNM_PATH" ]; then
