@@ -240,16 +240,15 @@ AWESOME_CLAUDE_CODE_DIR="/Users/brian/.awesome-claude-code/repo"
 export PATH="$PATH:$AWESOME_CLAUDE_CODE_DIR/awesome-claude/bin"
 # Auto-update disabled - run manually with: ~/.awesome-claude-code/repo/scripts/update.sh
 
-# fnm (Fast Node Manager) - per-shell node versions, reads .nvmrc files
-eval "$(fnm env --use-on-cd)"
-
 # I more frequently use ! as a literal than as a control character for searching history
 setopt NO_BANG_HIST
 
 # Auto-start tmux on SSH connections
 if [[ -n "$SSH_CONNECTION" ]] && command -v tmux &> /dev/null && [[ -z "$TMUX" ]]; then
   # Try to attach to existing session, or create new one
+  # When tmux exits, also exit the shell (ending SSH session)
   tmux attach-session -t default || tmux new-session -s default
+  exit
 fi
 
 # fnm
@@ -258,3 +257,7 @@ if [ -d "$FNM_PATH" ]; then
   export PATH="$FNM_PATH:$PATH"
   eval "`fnm env`"
 fi
+
+# fnm (Fast Node Manager) - per-shell node versions, reads .nvmrc files
+eval "$(fnm env --use-on-cd)"
+
