@@ -246,3 +246,9 @@ eval "$(fnm env --use-on-cd)"
 # I more frequently use ! as a literal than as a control character for searching history
 setopt NO_BANG_HIST
 
+# fnm
+FNM_PATH="/home/brian/.local/share/fnm"
+if [ -d "$FNM_PATH" ]; then
+  export PATH="$FNM_PATH:$PATH"
+  eval "`fnm env`"
+fi
