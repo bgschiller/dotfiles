@@ -233,3 +233,6 @@ export PATH="$PATH:$AWESOME_CLAUDE_CODE_DIR/awesome-claude/bin"
 # fnm (Fast Node Manager) - per-shell node versions, reads .nvmrc files
 eval "$(fnm env --use-on-cd)"
 
+# I more frequently use ! as a literal than as a control character for searching history
+setopt NO_BANG_HIST
+

@@ -1,0 +1,180 @@
+#!/usr/bin/env node
+
+/*
+ * git-move-branches - Fix up branches after git-branchless move
+ *
+ * After running `git move`, branches may remain pointing at old commits
+ * instead of the newly-created equivalent commits. This command detects
+ * that situation and relocates branches to the correct commits.
+ *
+ * Detection algorithm:
+ * 1. Look at all commits in stack() for duplicate commit messages
+ * 2. For each duplicate pair: one has a branch, one doesn't
+ * 3. Move the branch from the old commit to the new one
+ * 4. Preserve remote tracking info
+ */
+
+const { execSync } = require('child_process')
+
+function run(cmd, options = {}) {
+  try {
+    return execSync(cmd, { encoding: 'utf8', ...options }).trim()
+  } catch (e) {
+    if (options.allowFailure) return null
+    throw e
+  }
+}
+
+function getStackCommits() {
+  // Get all commits in the stack with their messages
+  // Format: "shorthash message"
+  const output = run("git query 'stack()'")
+  if (!output) return []
+
+  const commits = []
+  for (const line of output.split('\n')) {
+    if (!line.trim()) continue
+    const spaceIdx = line.indexOf(' ')
+    if (spaceIdx === -1) continue
+
+    const shortHash = line.slice(0, spaceIdx)
+    const message = line.slice(spaceIdx + 1)
+    // Expand to full hash for consistent comparison
+    const hash = run(`git rev-parse ${shortHash}`)
+    commits.push({ hash, message })
+  }
+  return commits
+}
+
+function getBranchesInStack() {
+  // Get all branch names in the stack
+  const output = run("git query -b 'stack()'", { allowFailure: true })
+  if (!output) return new Map()
+
+  const branches = new Map()
+  for (const line of output.split('\n')) {
+    const branch = line.trim()
+    if (!branch) continue
+
+    const hash = run(`git rev-parse ${branch}`)
+    const remote = run(`git config branch.${branch}.remote`, { allowFailure: true })
+    const merge = run(`git config branch.${branch}.merge`, { allowFailure: true })
+
+    branches.set(hash, { branch, remote, merge })
+  }
+  return branches
+}
+
+function findBranchesToMove(commits, branches) {
+  // Group commits by message
+  const byMessage = new Map()
+  for (const commit of commits) {
+    if (!byMessage.has(commit.message)) {
+      byMessage.set(commit.message, [])
+    }
+    byMessage.get(commit.message).push(commit.hash)
+  }
+
+  // Find duplicates where one has a branch and one doesn't
+  const toMove = []
+  for (const [message, hashes] of byMessage) {
+    if (hashes.length !== 2) continue
+
+    const [hash1, hash2] = hashes
+    const branch1 = branches.get(hash1)
+    const branch2 = branches.get(hash2)
+
+    if (branch1 && !branch2) {
+      // hash1 has branch, hash2 doesn't - move to hash2
+      toMove.push({
+        branch: branch1.branch,
+        from: hash1,
+        to: hash2,
+        remote: branch1.remote,
+        merge: branch1.merge,
+        message,
+      })
+    } else if (branch2 && !branch1) {
+      // hash2 has branch, hash1 doesn't - move to hash1
+      toMove.push({
+        branch: branch2.branch,
+        from: hash2,
+        to: hash1,
+        remote: branch2.remote,
+        merge: branch2.merge,
+        message,
+      })
+    }
+  }
+
+  return toMove
+}
+
+function main() {
+  const args = process.argv.slice(2)
+  const dryRun = args.includes('-n') || args.includes('--dry-run')
+
+  if (args.includes('-h') || args.includes('--help')) {
+    console.log(`Usage: git move-branches [options]
+
+Fix up branches after git-branchless move.
+
+After running 'git move', branches may remain pointing at old commits
+instead of the newly-created equivalent commits. This command detects
+duplicate commit messages in the stack and moves branches to the new commits.
+
+Options:
+  -n, --dry-run    Show what would be done without executing
+  -h, --help       Show this help message
+
+Example:
+  git move -s 'stack()' -d main   # Run the move
+  git move-branches               # Fix up the branches
+`)
+    process.exit(0)
+  }
+
+  console.log('Scanning stack for branches to relocate...')
+
+  const commits = getStackCommits()
+  const branches = getBranchesInStack()
+  const toMove = findBranchesToMove(commits, branches)
+
+  if (toMove.length === 0) {
+    console.log('No branches need to be relocated.')
+    process.exit(0)
+  }
+
+  console.log(`Found ${toMove.length} branch(es) to relocate:`)
+  for (const m of toMove) {
+    const tracking = m.remote ? ` (tracks ${m.remote}/${m.merge?.replace('refs/heads/', '')})` : ''
+    console.log(`  ${m.branch}: ${m.from.slice(0, 7)} -> ${m.to.slice(0, 7)}${tracking}`)
+    console.log(`    "${m.message}"`)
+  }
+
+  if (dryRun) {
+    console.log('\n(dry-run mode, no changes made)')
+    process.exit(0)
+  }
+
+  console.log('\nRelocating branches...')
+  for (const m of toMove) {
+    // Delete old branch and create at new location
+    run(`git branch -D ${m.branch}`)
+    run(`git branch ${m.branch} ${m.to}`)
+
+    // Restore tracking info if it existed
+    if (m.remote) {
+      run(`git config branch.${m.branch}.remote ${m.remote}`)
+    }
+    if (m.merge) {
+      run(`git config branch.${m.branch}.merge ${m.merge}`)
+    }
+
+    console.log(`  ✓ ${m.branch}`)
+  }
+
+  console.log('\nDone!')
+}
+
+main()
