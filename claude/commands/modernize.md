@@ -95,12 +95,38 @@ If the eslint configuration is small, it may be worth replacing it with line-spe
 
 ### 9. Update source files for ESM compatibility
 
-**Add .js extensions to fp-ts imports:**
+**Add .js extensions to fp-ts imports (but NOT to type-only imports):**
 
-Search for fp-ts imports and add `.js` extension:
-- `from 'fp-ts/lib/Option'` → `from 'fp-ts/lib/Option.js'`
-- `from 'fp-ts/lib/function'` → `from 'fp-ts/lib/function.js'`
-- etc.
+**CRITICAL: Type-only imports should NOT have `.js` extensions** because they're handled entirely by TypeScript at compile time and don't need runtime module resolution.
+
+Search for fp-ts imports and apply the correct pattern:
+
+**Correct patterns:**
+```typescript
+// ✅ Type-only imports: NO .js extension
+import type { Option } from 'fp-ts/lib/Option'
+import type { Kind2, URIS2 } from 'fp-ts/lib/HKT'
+
+// ✅ Regular imports: YES .js extension
+import { some, none } from 'fp-ts/lib/Option.js'
+import { pipe } from 'fp-ts/lib/function.js'
+import * as R from 'fp-ts/lib/Reader.js'
+```
+
+**Incorrect patterns:**
+```typescript
+// ❌ Type-only import with .js extension - will fail at build time
+import type { Option } from 'fp-ts/lib/Option.js'
+
+// ❌ Regular import without .js extension - may fail at runtime
+import { some, none } from 'fp-ts/lib/Option'
+```
+
+**How to identify:**
+- `import type { ... }` → NO .js extension
+- `import { type ... }` → YES .js extension (because the import itself is not type-only)
+- `import { ... }` → YES .js extension
+- `import * as ...` → YES .js extension
 
 This is required for ESM builds which don't support directory imports.
 

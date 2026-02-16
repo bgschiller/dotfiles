@@ -16,6 +16,7 @@
     "C:\\Users\\BrianSchiller\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1":
       path: Microsoft.PowerShell_profile.ps1
       if: "ver"
+    ~/.config/ghostty:
     ~/.config/kitty:
     ~/.clang-format: clang-format
     ~/.tmux.conf: tmux.conf

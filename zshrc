@@ -261,3 +261,5 @@ fi
 # fnm (Fast Node Manager) - per-shell node versions, reads .nvmrc files
 eval "$(fnm env --use-on-cd)"
 
+alias git='git-branchless wrap --'
+
