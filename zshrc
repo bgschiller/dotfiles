@@ -243,6 +243,15 @@ export PATH="$PATH:$AWESOME_CLAUDE_CODE_DIR/awesome-claude/bin"
 # I more frequently use ! as a literal than as a control character for searching history
 setopt NO_BANG_HIST
 
+# Set tmux window name based on git branch/worktree/directory
+if [[ -n "$TMUX" ]]; then
+  autoload -Uz add-zsh-hook
+  _tmux_set_window_name() {
+    tmux rename-window "$("$HOME/.config/tmux/window-name.sh" "$PWD")"
+  }
+  add-zsh-hook precmd _tmux_set_window_name
+fi
+
 # Auto-start tmux on SSH connections
 if [[ -n "$SSH_CONNECTION" ]] && command -v tmux &> /dev/null && [[ -z "$TMUX" ]]; then
   # Try to attach to existing session, or create new one
