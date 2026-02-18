@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v afplay > /dev/null && afplay /System/Library/Sounds/Glass.aiff || true"
+            "command": "printf '\\a'; command -v afplay > /dev/null && afplay /System/Library/Sounds/Glass.aiff || true"
           }
         ]
       }
