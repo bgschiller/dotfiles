@@ -151,7 +151,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/brian/bin/claude-statusline",
+    "command": "/home/brian/bin/claude-statusline",
     "padding": 0
   },
   "enabledPlugins": {
