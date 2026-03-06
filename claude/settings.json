@@ -90,12 +90,23 @@
     ],
     "deny": [],
     "ask": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "plan"
   },
-  "model": "claude-opus-4-6",
+  "model": "opus",
   "hooks": {
     "Stop": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tmux set-window-option -t \"$TMUX_PANE\" @claude_attention 1 2>/dev/null; command -v afplay > /dev/null && afplay /System/Library/Sounds/Glass.aiff || true"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
         "hooks": [
           {
             "type": "command",
@@ -110,5 +121,8 @@
     "command": "/Users/brian/bin/claude-statusline",
     "padding": 0
   },
-  "alwaysThinkingEnabled": false
+  "alwaysThinkingEnabled": false,
+  "enabledPlugins": {
+    "swift-lsp@claude-plugins-official": true
+  }
 }
