@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+// Signal that Claude Code needs user attention - cross-platform Node.js implementation
+
+const { execSync } = require('child_process');
+const path = require('path');
+
+const platform = process.platform;
+
+function setTmuxAttention() {
+  const tmuxPane = process.env.TMUX_PANE;
+  if (!tmuxPane) return;
+
+  try {
+    execSync(`tmux set-window-option -t "${tmuxPane}" @claude_attention 1`, {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+  } catch {
+    // Ignore errors (not in tmux, etc.)
+  }
+}
+
+function playSound() {
+  try {
+    if (platform === 'darwin') {
+      execSync('afplay /System/Library/Sounds/Glass.aiff', {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    } else if (platform === 'win32') {
+      // PowerShell one-liner to play system sound
+      execSync('powershell -c "[System.Media.SystemSounds]::Beep.Play()"', {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    }
+    // Linux: no default sound, could add paplay/aplay support if needed
+  } catch {
+    // Ignore errors (sound file missing, etc.)
+  }
+}
+
+setTmuxAttention();
+playSound();

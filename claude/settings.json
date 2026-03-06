@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux set-window-option -t \"$TMUX_PANE\" @claude_attention 1 2>/dev/null; command -v afplay > /dev/null && afplay /System/Library/Sounds/Glass.aiff || true"
+            "command": "claude-attention"
           }
         ]
       }
@@ -110,7 +110,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux set-window-option -t \"$TMUX_PANE\" @claude_attention 1 2>/dev/null; command -v afplay > /dev/null && afplay /System/Library/Sounds/Glass.aiff || true"
+            "command": "claude-attention"
           }
         ]
       }
