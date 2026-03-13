@@ -131,7 +131,7 @@ log_info "First 200 chars: ${DESCRIPTION:0:200}"
 
 # Write title and description to temp file and open in editor for approval
 log_step "Creating temp file for MR content..."
-DESCRIPTION_FILE=$(mktemp "/tmp/mr-description-XXXXXX.md")
+DESCRIPTION_FILE=$(mktemp "/tmp/mr-description-XXXXXX")
 log_info "Temp file: $DESCRIPTION_FILE"
 
 echo "// MR Title and Description" >"$DESCRIPTION_FILE"
