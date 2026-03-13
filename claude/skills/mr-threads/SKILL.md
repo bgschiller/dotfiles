@@ -1,73 +1,72 @@
 ---
 name: mr-threads
-description: List unresolved discussion threads on a GitLab merge request. Use when user asks about MR feedback, unresolved comments, or review threads.
+description: List unresolved discussion threads on a GitLab merge request or GitHub pull request. Use when user asks about MR feedback, unresolved comments, or review threads.
 allowed-tools:
-  - Bash(~/.claude/skills/mr-threads/scripts/glab-mr-threads.sh:*)
-  - Bash(glab mr list:*)
-  - Bash(glab mr view:*)
+  - Bash(~/bin/mr-threads:*)
   - Bash(git rev-parse:*)
   - Bash(git branch:*)
   - Read
   - Grep
 ---
 
-# List GitLab MR Discussion Threads
+# List MR/PR Discussion Threads
 
-Retrieve and display unresolved discussion threads on merge requests.
+Retrieve and display unresolved discussion threads on merge requests (GitLab) or pull requests (GitHub).
 
-## Helper Script
-
-Use the allowlisted helper script for all API calls:
+## Usage
 
 ```bash
-~/.claude/skills/mr-threads/scripts/glab-mr-threads.sh <command> [args]
+~/bin/mr-threads [mr-number]
 ```
 
-Commands:
-- `unresolved <mr-number>` - List unresolved threads (the main use case)
-- `all <mr-number>` - List all discussion threads
-- `thread <mr-number> <note-id>` - Get a specific thread by note ID
+The script auto-detects:
+- **Platform**: GitLab or GitHub based on git remote URL
+- **MR/PR number**: From current branch if not provided
 
 ## Workflow
 
-### Step 1: Find the MR Number
+### Step 1: Run the Script
 
-If the user provides an MR number, use it directly. Otherwise, find the MR for the current branch:
-
+If the user provides an MR/PR number:
 ```bash
-glab mr list --source-branch $(git rev-parse --abbrev-ref HEAD)
+~/bin/mr-threads 123
 ```
 
-### Step 2: Get Unresolved Threads
-
+Otherwise, auto-detect from current branch:
 ```bash
-~/.claude/skills/mr-threads/scripts/glab-mr-threads.sh unresolved <mr-number>
+~/bin/mr-threads
 ```
 
-This returns JSON with all unresolved threads, including:
-- `discussion_id` - The thread ID
-- `notes` - Array of unresolved notes with:
-  - `note_id` - Unique note identifier
-  - `author` - Username of commenter
-  - `body` - Full comment text
-  - `file` - File path (for diff comments)
-  - `line` - Line number (for diff comments)
-  - `created_at` - Timestamp
+### Step 2: Present Results
 
-### Step 3: Present Results
-
-Format the unresolved threads for the user. Group by file when applicable, and summarize the key points of each thread.
+The script outputs markdown with all unresolved threads, including:
+- File location and line number (for inline comments)
+- Author and date for each comment
+- Full conversation (all replies in each thread)
+- General discussion threads (not attached to files)
 
 ## Output Format
 
-When presenting results to the user, format each thread like:
+```markdown
+## Unresolved Threads (N)
 
-```
-### Thread Title/Summary
-**File:** `path/to/file.ts:line`
-**Author:** username
+### `src/file.ts:42`
+**@reviewer** - 2024-01-15
 
-Comment body...
+Comment body here
+
+**@author** - 2024-01-15
+
+Reply body here
+
+---
+
+### General Discussion
+**@commenter** - 2024-01-14
+
+Non-file-attached comment here
+
+---
 ```
 
 ## Example Session
@@ -76,18 +75,14 @@ Comment body...
 User: "What are the unresolved comments on my MR?"
 
 Claude:
-# Find MR
-glab mr list --source-branch $(git rev-parse --abbrev-ref HEAD)
-# Output: !1562 cheetah-web-integration-rebased
+~/bin/mr-threads
+# Output: Markdown formatted threads
 
-# Get unresolved threads
-~/.claude/skills/mr-threads/scripts/glab-mr-threads.sh unresolved 1562
-
-# Format and present results to user
+# Summarize and present to user
 ```
 
 ## Notes
 
-- The script uses `per_page=100` which should cover most MRs
-- For MRs with more than 100 discussions, pagination may be needed (rare)
-- The `thread` command is useful for getting the full context of a specific comment when you have the note ID from a URL
+- Uses `glab` CLI for GitLab, `gh` CLI for GitHub
+- Fetches up to 100 discussions (covers most MRs/PRs)
+- Shows full thread conversation, not just unresolved notes

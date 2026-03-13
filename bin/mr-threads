@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Retrieve unresolved discussion threads from GitLab MRs or GitHub PRs
+# Outputs markdown formatted threads for easy reading
+
+usage() {
+  cat << 'EOF'
+Usage: mr-threads [mr-number]
+
+Retrieve unresolved discussion threads from a merge request or pull request.
+
+Arguments:
+  mr-number    MR/PR number (optional - auto-detects from current branch)
+
+Platform is auto-detected from git remote URL:
+  - gitlab.* -> uses glab CLI
+  - github.* -> uses gh CLI
+
+Output is markdown formatted with all thread replies included.
+EOF
+}
+
+die() {
+  echo "Error: $1" >&2
+  exit 1
+}
+
+# Detect platform from git remote URL
+detect_platform() {
+  local origin_url
+  origin_url=$(git remote get-url origin 2>/dev/null) || die "Not in a git repository or no origin remote"
+
+  if [[ "$origin_url" =~ gitlab ]]; then
+    echo "gitlab"
+  elif [[ "$origin_url" =~ github ]]; then
+    echo "github"
+  else
+    die "Unknown platform. Remote URL must contain 'gitlab' or 'github': $origin_url"
+  fi
+}
+
+# Get current branch name
+get_current_branch() {
+  git rev-parse --abbrev-ref HEAD
+}
+
+# GitLab: Get URL-encoded project ID
+gitlab_get_project_id() {
+  local project_path
+  project_path=$(glab repo view --output json 2>/dev/null | jq -r '.path_with_namespace') || die "Failed to get GitLab project info"
+  echo "${project_path//\//%2F}"
+}
+
+# GitLab: Find MR number for current branch
+gitlab_find_mr() {
+  local branch="$1"
+  local mr_data
+
+  mr_data=$(glab mr list --source-branch "$branch" -F json 2>/dev/null | jq -r '.[0].iid // empty') || true
+
+  if [[ -z "$mr_data" ]]; then
+    die "No MR found for branch '$branch'"
+  fi
+
+  echo "$mr_data"
+}
+
+# GitLab: Fetch and format unresolved threads
+gitlab_threads() {
+  local mr_number="$1"
+  local project_id
+  project_id=$(gitlab_get_project_id)
+
+  local discussions
+  discussions=$(glab api "projects/${project_id}/merge_requests/${mr_number}/discussions?per_page=100" 2>/dev/null) || die "Failed to fetch discussions"
+
+  # Process discussions and output markdown
+  echo "$discussions" | jq -r '
+    # Filter to discussions with unresolved resolvable notes
+    [.[] | select(.notes | any(.resolvable == true and .resolved == false))] |
+
+    # Count total
+    length as $total |
+
+    # Output header
+    "## Unresolved Threads (\($total))\n",
+
+    # Process each discussion
+    (.[] |
+      # Get file location from first note with position info
+      (.notes[0].position.new_path // null) as $file |
+      (.notes[0].position.new_line // null) as $line |
+
+      # Build location string
+      (if $file then
+        if $line then "### `\($file):\($line)`"
+        else "### `\($file)`"
+        end
+      else "### General Discussion"
+      end),
+      "",
+
+      # Output all notes in the thread (not just unresolved ones, to show full conversation)
+      (.notes[] |
+        "**@\(.author.username)** - \(.created_at[0:10])",
+        "",
+        .body,
+        ""
+      ),
+      "---",
+      ""
+    )
+  '
+}
+
+# GitHub: Find PR number for current branch
+github_find_pr() {
+  local pr_number
+  pr_number=$(gh pr view --json number -q .number 2>/dev/null) || true
+
+  if [[ -z "$pr_number" ]]; then
+    die "No PR found for current branch"
+  fi
+
+  echo "$pr_number"
+}
+
+# GitHub: Fetch and format unresolved threads
+github_threads() {
+  local pr_number="$1"
+
+  # Get owner and repo from remote
+  local remote_url owner repo
+  remote_url=$(git remote get-url origin)
+
+  if [[ "$remote_url" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
+    owner="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]%.git}"
+  else
+    die "Could not parse GitHub owner/repo from remote URL"
+  fi
+
+  # Fetch review threads using GraphQL
+  local review_threads
+  review_threads=$(gh api graphql -f query='
+    query($owner: String!, $repo: String!, $pr: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $pr) {
+          reviewThreads(first: 100) {
+            nodes {
+              isResolved
+              path
+              line
+              comments(first: 100) {
+                nodes {
+                  body
+                  author { login }
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ' -f owner="$owner" -f repo="$repo" -F pr="$pr_number" 2>/dev/null) || die "Failed to fetch review threads"
+
+  # Also fetch general PR comments (not attached to files)
+  local pr_comments
+  pr_comments=$(gh pr view "$pr_number" --json comments 2>/dev/null) || pr_comments='{"comments":[]}'
+
+  # Process and output markdown
+  {
+    # Count unresolved review threads
+    local thread_count
+    thread_count=$(echo "$review_threads" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+
+    # Count general comments (these are always "unresolved" since GitHub doesn't have resolution for them)
+    local comment_count
+    comment_count=$(echo "$pr_comments" | jq '.comments | length')
+
+    echo "## Unresolved Threads ($thread_count)"
+    echo ""
+
+    # Output review threads
+    echo "$review_threads" | jq -r '
+      .data.repository.pullRequest.reviewThreads.nodes[] |
+      select(.isResolved == false) |
+
+      # Build location string
+      (if .path then
+        if .line then "### `\(.path):\(.line)`"
+        else "### `\(.path)`"
+        end
+      else "### General Discussion"
+      end),
+      "",
+
+      # Output all comments in the thread
+      (.comments.nodes[] |
+        "**@\(.author.login)** - \(.createdAt[0:10])",
+        "",
+        .body,
+        ""
+      ),
+      "---",
+      ""
+    '
+
+    # Output general PR comments if any
+    if [[ "$comment_count" -gt 0 ]]; then
+      echo "### General Discussion"
+      echo ""
+      echo "$pr_comments" | jq -r '
+        .comments[] |
+        "**@\(.author.login)** - \(.createdAt[0:10])",
+        "",
+        .body,
+        "",
+        "---",
+        ""
+      '
+    fi
+  }
+}
+
+main() {
+  local mr_number="${1:-}"
+
+  # Handle help flag
+  if [[ "$mr_number" == "-h" || "$mr_number" == "--help" ]]; then
+    usage
+    exit 0
+  fi
+
+  # Detect platform
+  local platform
+  platform=$(detect_platform)
+
+  # Auto-detect MR/PR number if not provided
+  if [[ -z "$mr_number" ]]; then
+    local branch
+    branch=$(get_current_branch)
+
+    if [[ "$platform" == "gitlab" ]]; then
+      mr_number=$(gitlab_find_mr "$branch")
+    else
+      mr_number=$(github_find_pr)
+    fi
+  fi
+
+  # Fetch and display threads
+  if [[ "$platform" == "gitlab" ]]; then
+    gitlab_threads "$mr_number"
+  else
+    github_threads "$mr_number"
+  fi
+}
+
+main "$@"
