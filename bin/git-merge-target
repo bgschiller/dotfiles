@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Get candidate branches from git-branchless
+candidates=$(git query --branches '(ancestors(HEAD) & parents(stack())) - HEAD' 2>/dev/null)
+
+if [[ -z "$candidates" ]]; then
+  echo "main"
+  exit 0
+fi
+
+# Get the last candidate (what we would have returned before)
+last_candidate=$(echo "$candidates" | tail -n1)
+
+# If last candidate is already main, just return it
+if [[ "$last_candidate" == "main" ]]; then
+  echo "main"
+  exit 0
+fi
+
+# Check if last candidate is at the same commit as main
+main_commit=$(git rev-parse main 2>/dev/null || echo "")
+candidate_commit=$(git rev-parse "$last_candidate" 2>/dev/null || echo "")
+
+if [[ -n "$main_commit" && "$main_commit" == "$candidate_commit" ]]; then
+  echo "main"
+else
+  echo "$last_candidate"
+fi
