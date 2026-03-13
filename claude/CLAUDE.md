@@ -91,6 +91,11 @@ Good names tell a story about the domain:
 If you catch yourself writing "new", "old", "legacy", "wrapper", "unified", or implementation details in names or comments, STOP and find a better name that describes the thing's
 actual purpose.
 
+## GitLab CLI
+
+- Use `glab` CLI for GitLab operations, not `gh` (which is for GitHub)
+- Example: `glab api projects/front-end%2Ffront-end-web-monorepo/pipelines/123`
+
 ## Version Control
 
 - If the project isn't in a git repo, STOP and ask permission to initialize one.
