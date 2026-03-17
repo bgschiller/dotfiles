@@ -229,6 +229,10 @@ bindkey "^[f" forward-word
 # Emacs-style line navigation (explicit, fixes tmux issues)
 bindkey "^A" beginning-of-line
 bindkey "^E" end-of-line
+# Edit command line in $EDITOR with Ctrl-X Ctrl-E
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^X^E' edit-command-line
 
 eval "$(starship init zsh)"
 
