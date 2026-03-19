@@ -92,7 +92,7 @@
     "ask": [],
     "defaultMode": "plan"
   },
-  "model": "opus",
+  "model": "claude-opus-4-6",
   "hooks": {
     "Stop": [
       {
