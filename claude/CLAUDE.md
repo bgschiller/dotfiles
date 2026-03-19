@@ -62,6 +62,7 @@ Only pause to ask for confirmation when:
 - YOU MUST MATCH the style and formatting of surrounding code, even if it differs from standard style guides. Consistency within a file trumps external standards.
 - YOU MUST NOT manually change whitespace that does not affect execution or output. Otherwise, use a formatting tool.
 - Fix broken things immediately when you find them. Don't ask permission to fix bugs.
+- Use `jq` to manipulate JSON when possible, as it doesn't require a permission prompt.
 
 ## Naming
 
