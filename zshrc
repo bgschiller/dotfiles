@@ -47,6 +47,7 @@ export LESS="-R"
 [[ -d /usr/share/elasticsearch/bin/ ]] && [[ ":$PATH:" != *":/usr/share/elasticsearch/bin/:"* ]] && export PATH=":/usr/share/elasticsearch/bin/:$PATH"
 
 [[ -d /usr/local/go/bin ]] && [[ ":$PATH:" != *":/usr/local/go/bin:"* ]] && export PATH="$PATH:/usr/local/go/bin"
+[[ -d $HOME/go/bin ]] && [[ ":$PATH:" != *":$HOME/go/bin:"* ]] && export PATH="$PATH:$HOME/go/bin"
 
 if which xclip 2>&1 > /dev/null; then
   function pbcopy() {
