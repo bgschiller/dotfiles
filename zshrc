@@ -277,3 +277,10 @@ eval "$(fnm env --use-on-cd)"
 
 alias git='git-branchless wrap --'
 
+
+# bun completions
+[ -s "/Users/brian/.bun/_bun" ] && source "/Users/brian/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
