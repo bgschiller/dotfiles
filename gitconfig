@@ -19,6 +19,7 @@
     rc = rebase --continue
     mb = move-branches
     gone = "!git fetch -p && git branch -vv | grep \": gone]\" | awk \"{print \\$1}\" | xargs -r git branch -D"
+    sls = "branchless smartlog 'stack()'"
 [fetch]
     prune = true
 [core]
