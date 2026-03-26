@@ -174,7 +174,13 @@ function claude() {
     echo "⚠️  Claude doesn't work well in VS Code's terminal. Please use iTerm2, Terminal.app, or another proper terminal."
     return 1
   fi
-  command claude "$@"
+
+  # Use work config (~/.claude) under ~/work and ~/dotfiles, personal config elsewhere
+  if [[ "$PWD" == "$HOME/work"* || "$PWD" == "$HOME/dotfiles"* ]]; then
+    CLAUDE_CONFIG_DIR="$HOME/.claude" command claude "$@"
+  else
+    CLAUDE_CONFIG_DIR="$HOME/.claude-personal" command claude "$@"
+  fi
 }
 
 

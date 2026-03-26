@@ -36,6 +36,7 @@
     ~/.config/jrnl/jrnl.yaml:
     ~/bin:
     ~/.claude:
+    ~/.claude-personal:
     ~/.vscode/settings.json:
       path: vscode/settings.json
     ~/.vscode/keybindings.json:
