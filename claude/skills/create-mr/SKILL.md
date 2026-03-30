@@ -9,8 +9,8 @@ allowed-tools:
   - Bash(git:*)
   - Bash(glab mr create:*)
   - Bash(glab repo view:*)
-  - Bash(code --wait:*)
   - Bash(~/.claude/skills/create-mr/scripts/glab-mr-helper.sh:*)
+  - Bash(~/.claude/skills/human-review/scripts/open-editor.sh:*)
 ---
 
 # Create Merge Request
@@ -106,10 +106,10 @@ Write the draft to a file in the current directory:
 # and continues...
 ```
 
-Open with VS Code and wait for edits:
+Open the file for Brian to review and edit:
 
 ```bash
-code --wait mr-branch-name.md
+~/.claude/skills/human-review/scripts/open-editor.sh mr-branch-name.md
 ```
 
 After Brian saves and closes:
