@@ -23,6 +23,7 @@ claude/.update.lock
 claude/backups/
 claude/sessions/
 claude/policy-limits.json
+claude/tasks/
 
 claude-personal/cache/
 claude-personal/debug/
@@ -49,6 +50,7 @@ claude-personal/.update.lock
 claude-personal/backups/
 claude-personal/sessions/
 claude-personal/policy-limits.json
+claude-personal/tasks/
 
 bin/prq
 bin/syncthing
