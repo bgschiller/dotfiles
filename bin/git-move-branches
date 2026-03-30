@@ -3,16 +3,18 @@
 /*
  * git-move-branches - Fix up branches after git-branchless move
  *
- * After running `git move`, branches may remain pointing at old commits
- * instead of the newly-created equivalent commits. This command detects
- * that situation and relocates branches to the correct commits.
+ * After running `git move`, branches may remain pointing at old (orphaned)
+ * commits instead of the newly-created equivalent commits. This command
+ * detects that situation and relocates branches to the correct commits.
  *
  * Detection algorithm:
- * 1. Look at all commits in stack() for duplicate commit messages
- * 2. For each duplicate pair, compare committer timestamps
- * 3. If the branch is on the older commit, move it to the newer one
- * 4. If the branch is already on the newer commit, do nothing
- * 5. Preserve remote tracking info
+ * 1. Get stack commits via stack() — these are the move destinations
+ * 2. Get all branches on draft commits via draft() — includes orphaned branches
+ * 3. Filter to branches whose commit is NOT in the stack (orphaned)
+ * 4. Match orphaned branches to stack commits by commit message
+ * 5. When multiple commits share a message, pair by timestamp order
+ *    (Nth-oldest orphan → Nth-oldest stack commit)
+ * 6. Preserve remote tracking info
  */
 
 const { execSync } = require('child_process')
@@ -47,9 +49,9 @@ function getStackCommits() {
   return commits
 }
 
-function getBranchesInStack() {
-  // Get all branch names in the stack
-  const output = run("git query -b 'stack()'", { allowFailure: true })
+function getBranchesOnDrafts() {
+  // Get all branch names on draft commits (includes orphaned commits from moves)
+  const output = run("git query -b 'draft()'", { allowFailure: true })
   if (!output) return new Map()
 
   const branches = new Map()
@@ -58,10 +60,11 @@ function getBranchesInStack() {
     if (!branch) continue
 
     const hash = run(`git rev-parse ${branch}`)
+    const message = run(`git log -1 --format="%s" ${hash}`)
     const remote = run(`git config branch.${branch}.remote`, { allowFailure: true })
     const merge = run(`git config branch.${branch}.merge`, { allowFailure: true })
 
-    branches.set(hash, { branch, remote, merge })
+    branches.set(branch, { hash, message, remote, merge })
   }
   return branches
 }
@@ -71,47 +74,57 @@ function getCommitTimestamp(hash) {
   return parseInt(run(`git log -1 --format="%ct" ${hash}`), 10)
 }
 
-function findBranchesToMove(commits, branches) {
-  // Group commits by message
-  const byMessage = new Map()
-  for (const commit of commits) {
-    if (!byMessage.has(commit.message)) {
-      byMessage.set(commit.message, [])
+function findBranchesToMove(stackCommits, draftBranches) {
+  const stackHashes = new Set(stackCommits.map(c => c.hash))
+
+  // Build map: message → [hashes] sorted by timestamp for stack commits
+  const stackByMessage = new Map()
+  for (const commit of stackCommits) {
+    if (!stackByMessage.has(commit.message)) {
+      stackByMessage.set(commit.message, [])
     }
-    byMessage.get(commit.message).push(commit.hash)
+    stackByMessage.get(commit.message).push(commit.hash)
+  }
+  // Sort each group by timestamp (oldest first) for positional matching
+  for (const [, hashes] of stackByMessage) {
+    hashes.sort((a, b) => getCommitTimestamp(a) - getCommitTimestamp(b))
   }
 
-  // Find duplicates and move branch to the newer commit
-  const toMove = []
-  for (const [message, hashes] of byMessage) {
-    if (hashes.length !== 2) continue
-
-    const [hash1, hash2] = hashes
-
-    // Determine which is newer by committer timestamp
-    const time1 = getCommitTimestamp(hash1)
-    const time2 = getCommitTimestamp(hash2)
-    const [olderHash, newerHash] = time1 < time2 ? [hash1, hash2] : [hash2, hash1]
-
-    // Find which commit has a branch (could be either one)
-    const branchOnOlder = branches.get(olderHash)
-    const branchOnNewer = branches.get(newerHash)
-
-    if (branchOnOlder && !branchOnNewer) {
-      // Branch is on older commit, move to newer
-      toMove.push({
-        branch: branchOnOlder.branch,
-        from: olderHash,
-        to: newerHash,
-        remote: branchOnOlder.remote,
-        merge: branchOnOlder.merge,
-        message,
-      })
-    } else if (branchOnNewer && !branchOnOlder) {
-      // Branch is already on newer commit, nothing to do
-      // (This handles the case where the branch is already correct)
+  // Find branches on draft commits that are NOT in the stack (orphaned)
+  const candidates = []
+  for (const [branch, info] of draftBranches) {
+    if (!stackHashes.has(info.hash)) {
+      candidates.push({ branch, ...info })
     }
-    // If both or neither have branches, skip (unusual state)
+  }
+
+  if (candidates.length === 0) return []
+
+  // Track how many candidates with each message we've matched,
+  // so Nth-oldest orphan maps to Nth-oldest stack commit
+  const matchCount = new Map()
+
+  // Sort candidates by timestamp (oldest first) for positional pairing
+  candidates.sort((a, b) => getCommitTimestamp(a.hash) - getCommitTimestamp(b.hash))
+
+  const toMove = []
+  for (const candidate of candidates) {
+    const targets = stackByMessage.get(candidate.message)
+    if (!targets || targets.length === 0) continue
+
+    const idx = matchCount.get(candidate.message) || 0
+    if (idx >= targets.length) continue // more orphans than targets, skip
+
+    matchCount.set(candidate.message, idx + 1)
+
+    toMove.push({
+      branch: candidate.branch,
+      from: candidate.hash,
+      to: targets[idx],
+      remote: candidate.remote,
+      merge: candidate.merge,
+      message: candidate.message,
+    })
   }
 
   return toMove
@@ -144,7 +157,7 @@ Example:
   console.log('Scanning stack for branches to relocate...')
 
   const commits = getStackCommits()
-  const branches = getBranchesInStack()
+  const branches = getBranchesOnDrafts()
   const toMove = findBranchesToMove(commits, branches)
 
   if (toMove.length === 0) {
