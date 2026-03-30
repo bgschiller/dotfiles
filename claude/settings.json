@@ -111,6 +111,7 @@
       "Bash(xcodebuild:*)",
       "Bash(~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh:*)",
       "Bash(~/.claude/skills/create-mr/scripts/glab-mr-helper.sh:*)",
+      "Bash(~/.claude/skills/human-review/scripts/open-editor.sh:*)",
       "Bash(~/bin/mr-threads:*)",
       "Edit",
       "Read(~/.claude/projects/*/*/tool-results/*)"
