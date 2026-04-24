@@ -95,7 +95,6 @@ fi
 export CLIPBOX_AWS_S3_BUCKET=brianschiller-clipbox
 export CLIPBOX_URL_PREFIX=https://clip.brianschiller.com/
 
-export N_PREFIX=$HOME/.n
 
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
@@ -177,9 +176,9 @@ function claude() {
 
   # Use work config (~/.claude) under ~/work and ~/dotfiles, personal config elsewhere
   if [[ "$PWD" == "$HOME/work"* || "$PWD" == "$HOME/dotfiles"* ]]; then
-    CLAUDE_CONFIG_DIR="$HOME/.claude" command claude "$@"
+    CLAUDE_CONFIG_DIR="$HOME/.claude" command claude --enable-auto-mode "$@"
   else
-    CLAUDE_CONFIG_DIR="$HOME/.claude-personal" command claude "$@"
+    CLAUDE_CONFIG_DIR="$HOME/.claude-personal" command claude --enable-auto-mode "$@"
   fi
 }
 
@@ -195,8 +194,6 @@ esac
 # add $HOME/bin to path if not present
 [[ ":$PATH:" != *":$HOME/bin:"* ]] && export PATH="$HOME/bin:$PATH"
 #
-
-export PATH="$N_PREFIX/bin:$PATH"
 
 # Lazy-load sdkman
 export SDKMAN_DIR="$HOME/.sdkman"
@@ -245,6 +242,14 @@ eval "$(starship init zsh)"
 
 eval "$(mcfly init zsh)"
 
+# Prefix-matching history search on up/down (e.g. `git<up>` cycles recent git commands).
+# Mcfly's fuzzy picker remains on Ctrl+R.
+autoload -Uz history-search-end
+zle -N history-beginning-search-backward-end history-search-end
+zle -N history-beginning-search-forward-end history-search-end
+bindkey "^[[A" history-beginning-search-backward-end  # Up
+bindkey "^[[B" history-beginning-search-forward-end   # Down
+
 
 # Awesome Claude Code initialization (PATH only, update check disabled for performance)
 AWESOME_CLAUDE_CODE_DIR="/Users/brian/.awesome-claude-code/repo"
@@ -271,14 +276,7 @@ if [[ -n "$SSH_CONNECTION" ]] && command -v tmux &> /dev/null && [[ -z "$TMUX" ]
   exit
 fi
 
-# fnm
-FNM_PATH="/home/brian/.local/share/fnm"
-if [ -d "$FNM_PATH" ]; then
-  export PATH="$FNM_PATH:$PATH"
-  eval "`fnm env`"
-fi
-
-# fnm (Fast Node Manager) - per-shell node versions, reads .nvmrc files
+# fnm (Fast Node Manager) - per-shell node versions, reads .node-version/.nvmrc
 eval "$(fnm env --use-on-cd)"
 
 alias git='git-branchless wrap --'
