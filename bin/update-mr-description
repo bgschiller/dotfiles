@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Clean up temp files on exit
+CLEANUP_FILES=()
+cleanup() { for f in "${CLEANUP_FILES[@]}"; do rm -f "$f"; done; }
+trap cleanup EXIT
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -92,6 +97,16 @@ fi
 # Check if claude CLI is installed
 if ! command -v claude &>/dev/null; then
   log_error "claude CLI is not installed. Install it from: https://docs.anthropic.com/en/docs/claude-code"
+  exit 1
+fi
+
+# Verify claude is authenticated
+AUTH_CHECK=$(claude --print "ok" 2>&1) || true
+if [[ "$AUTH_CHECK" == *"Not logged in"* ]] || [[ "$AUTH_CHECK" == *"not logged in"* ]]; then
+  log_error "Claude CLI is not authenticated. Either:"
+  log_error "  1. Set ANTHROPIC_API_KEY in your shell environment"
+  log_error "  2. Set apiKeyHelper in ~/.claude/settings.json"
+  log_error "  3. Run 'claude login' from a terminal (outside Claude Code)"
   exit 1
 fi
 
@@ -231,33 +246,46 @@ fi
 
 log_info "Comparing $CURRENT_BRANCH against $BASE_BRANCH"
 
-# Get the diff statistics
+# Write change details to a temp file for Claude to read
 log_info "Analyzing changes..."
-DIFF_STATS=$(git diff --stat "$BASE_BRANCH"..."$CURRENT_BRANCH")
-DIFF_CONTENT=$(git diff "$BASE_BRANCH"..."$CURRENT_BRANCH")
+CHANGES_FILE=$(mktemp "/tmp/mr-changes-XXXXXX")
+CLEANUP_FILES+=("$CHANGES_FILE")
 
-# Get full commit details (subject, body, and individual diffs)
-log_info "Collecting commit details..."
-COMMIT_DETAILS=""
-# Get list of commit hashes
-COMMIT_HASHES=$(git log --pretty=format:"%H" "$BASE_BRANCH".."$CURRENT_BRANCH")
+{
+  echo "# Changes: $CURRENT_BRANCH -> $TARGET_BRANCH"
+  echo ""
+  echo "## Diff Statistics"
+  echo '```'
+  git diff --stat "$BASE_BRANCH"..."$CURRENT_BRANCH"
+  echo '```'
+  echo ""
 
-for commit in $COMMIT_HASHES; do
-  COMMIT_SUBJECT=$(git log -1 --pretty=format:"%s" "$commit")
-  COMMIT_BODY=$(git log -1 --pretty=format:"%b" "$commit")
-  COMMIT_DIFF=$(git show --pretty=format:"" "$commit")
+  echo "## Commits"
+  COMMIT_HASHES=$(git log --pretty=format:"%H" "$BASE_BRANCH".."$CURRENT_BRANCH")
+  for commit in $COMMIT_HASHES; do
+    COMMIT_SUBJECT=$(git log -1 --pretty=format:"%s" "$commit")
+    COMMIT_BODY=$(git log -1 --pretty=format:"%b" "$commit")
+    echo "### $COMMIT_SUBJECT"
+    echo ""
+    if [ -n "$COMMIT_BODY" ]; then
+      echo "$COMMIT_BODY"
+      echo ""
+    fi
+    echo "#### Diff:"
+    echo '```diff'
+    git show --pretty=format:"" "$commit"
+    echo '```'
+    echo ""
+  done
 
-  COMMIT_DETAILS+="## Commit: $COMMIT_SUBJECT"$'\n\n'
-  if [ -n "$COMMIT_BODY" ]; then
-    COMMIT_DETAILS+="$COMMIT_BODY"$'\n\n'
-  fi
-  COMMIT_DETAILS+="### Diff:"$'\n'
-  COMMIT_DETAILS+='```'$'\n'
-  COMMIT_DETAILS+="$COMMIT_DIFF"$'\n'
-  COMMIT_DETAILS+='```'$'\n\n'
-done
+  echo "## Full Diff"
+  echo '```diff'
+  git diff "$BASE_BRANCH"..."$CURRENT_BRANCH"
+  echo '```'
+} > "$CHANGES_FILE"
 
-# Also keep simple commit list for backwards compatibility
+log_info "Wrote change details to: $CHANGES_FILE"
+
 COMMIT_MESSAGES=$(git log --pretty=format:"- %s" "$BASE_BRANCH".."$CURRENT_BRANCH")
 
 # Extract experiments and gates for inkwell repo
@@ -329,6 +357,10 @@ PROMPT="You are helping to create a merge/pull request with a title and descript
 Repository: $REPO_PATH
 Branch: $CURRENT_BRANCH -> $TARGET_BRANCH
 
+The full change details (diff statistics, commit messages with diffs, and the overall diff) are in this file:
+$CHANGES_FILE
+
+Read that file to understand the changes. Use your judgement about how much detail you need.
 "
 
 if [ -n "$TEMPLATE_CONTENT" ]; then
@@ -339,13 +371,6 @@ $TEMPLATE_CONTENT
 
 "
 fi
-
-PROMPT+="Full commit details with diffs:
-$COMMIT_DETAILS
-
-Overall diff statistics:
-$DIFF_STATS
-"
 
 if [ -n "$EXPERIMENTS_GATES_INFO" ]; then
   PROMPT+="
@@ -378,21 +403,61 @@ The first line inside the code block MUST be the title prefixed with '# ' (hash 
 Output ONLY this fenced markdown block with no preamble or explanation before or after it."
 
 log_info "Prompt length: ${#PROMPT} characters"
-log_info "Calling claude --print (this may take a moment)..."
+log_info "Changes file: $CHANGES_FILE ($(wc -c < "$CHANGES_FILE" | tr -d ' ') bytes)"
 
-# Use claude --print to generate title and description
-CLAUDE_OUTPUT=$(echo "$PROMPT" | claude --print 2>&1)
-CLAUDE_EXIT_CODE=$?
-log_info "Claude exit code: $CLAUDE_EXIT_CODE"
+MAX_RETRIES=3
+RETRY_DELAY=5
+PROMPT_FILE=$(mktemp "/tmp/claude-prompt-XXXXXX")
+CLAUDE_STDOUT=$(mktemp "/tmp/claude-stdout-XXXXXX")
+CLAUDE_STDERR=$(mktemp "/tmp/claude-stderr-XXXXXX")
+CLEANUP_FILES+=("$PROMPT_FILE" "$CLAUDE_STDOUT" "$CLAUDE_STDERR")
+printf '%s' "$PROMPT" > "$PROMPT_FILE"
+CLAUDE_EXIT_CODE=1
+
+for attempt in $(seq 1 $MAX_RETRIES); do
+  log_info "Calling claude --print (attempt $attempt/$MAX_RETRIES)..."
+
+  # Disable set -e so a failed claude call doesn't kill the script
+  set +e
+  claude --print --allowedTools "Read" <"$PROMPT_FILE" >"$CLAUDE_STDOUT" 2>"$CLAUDE_STDERR"
+  CLAUDE_EXIT_CODE=$?
+  set -e
+
+  CLAUDE_OUTPUT=$(cat "$CLAUDE_STDOUT")
+  CLAUDE_ERR=$(cat "$CLAUDE_STDERR")
+
+  if [ $CLAUDE_EXIT_CODE -eq 0 ] && [ -n "$CLAUDE_OUTPUT" ]; then
+    log_info "Claude succeeded on attempt $attempt"
+    break
+  fi
+
+  log_warn "Claude attempt $attempt failed (exit code: $CLAUDE_EXIT_CODE)"
+  if [ -n "$CLAUDE_ERR" ]; then
+    log_warn "stderr: ${CLAUDE_ERR:0:500}"
+  fi
+  if [ -n "$CLAUDE_OUTPUT" ]; then
+    log_warn "stdout: ${CLAUDE_OUTPUT:0:500}"
+  else
+    log_warn "stdout was empty"
+  fi
+
+  if [ "$attempt" -lt "$MAX_RETRIES" ]; then
+    log_info "Retrying in ${RETRY_DELAY}s..."
+    sleep "$RETRY_DELAY"
+    RETRY_DELAY=$((RETRY_DELAY * 2))
+  fi
+done
 
 if [ $CLAUDE_EXIT_CODE -ne 0 ]; then
-  log_error "Claude command failed with exit code $CLAUDE_EXIT_CODE"
-  log_error "Output: ${CLAUDE_OUTPUT:0:500}"
+  log_error "Claude command failed after $MAX_RETRIES attempts (exit code: $CLAUDE_EXIT_CODE)"
+  log_error "Last stderr: ${CLAUDE_ERR:0:1000}"
+  log_error "Last stdout: ${CLAUDE_OUTPUT:0:1000}"
   exit 1
 fi
 
 if [ -z "$CLAUDE_OUTPUT" ]; then
-  log_error "Failed to generate title and description with Claude"
+  log_error "Claude returned empty output after $MAX_RETRIES attempts"
+  log_error "Last stderr: ${CLAUDE_ERR:0:1000}"
   exit 1
 fi
 

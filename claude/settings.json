@@ -123,9 +123,9 @@
       "Bash(rm:*)",
       "Bash(source:*)"
     ],
-    "defaultMode": "plan"
+    "defaultMode": "auto"
   },
-  "model": "claude-opus-4-6",
+  "model": "opus",
   "hooks": {
     "Stop": [
       {
@@ -159,5 +159,16 @@
     "aidev@superhuman-aidev": true,
     "review@superhuman-aidev": true
   },
-  "alwaysThinkingEnabled": false
+  "extraKnownMarketplaces": {
+    "tui-use": {
+      "source": {
+        "source": "github",
+        "repo": "onesuper/tui-use"
+      }
+    }
+  },
+  "alwaysThinkingEnabled": false,
+  "skipDangerousModePermissionPrompt": true,
+  "skipAutoPermissionPrompt": true,
+  "awaySummaryEnabled": false
 }

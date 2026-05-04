@@ -70,22 +70,21 @@ log_info "Target branch: $TARGET_BRANCH"
 log_step "Generating MR title and description..."
 log_info "Running: $UPDATE_MR_DESCRIPTION --print-only $CURRENT_BRANCH"
 
-# Save raw output to a debug file for troubleshooting
 DEBUG_FILE="/tmp/mr-description-debug-$(date +%Y%m%d-%H%M%S).md"
-MR_CONTENT=$("$UPDATE_MR_DESCRIPTION" --print-only "$CURRENT_BRANCH" | tee "$DEBUG_FILE")
+MR_CONTENT=$("$UPDATE_MR_DESCRIPTION" --print-only "$CURRENT_BRANCH")
 MR_CONTENT_EXIT_CODE=$?
-log_info "update-mr-description exit code: $MR_CONTENT_EXIT_CODE"
-log_info "Raw output saved to: $DEBUG_FILE"
+
+if [ -n "$MR_CONTENT" ]; then
+  echo "$MR_CONTENT" > "$DEBUG_FILE"
+  log_info "Raw output saved to: $DEBUG_FILE"
+fi
 
 if [ $MR_CONTENT_EXIT_CODE -ne 0 ]; then
   log_error "update-mr-description failed with exit code $MR_CONTENT_EXIT_CODE"
-  log_error "Output saved to: $DEBUG_FILE"
-  log_error "First 500 chars: ${MR_CONTENT:0:500}"
   exit 1
 fi
 if [ -z "$MR_CONTENT" ]; then
   log_error "Failed to generate MR content (empty output)"
-  log_error "Debug file: $DEBUG_FILE"
   exit 1
 fi
 

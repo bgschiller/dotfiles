@@ -122,7 +122,7 @@
       "Bash(rm:*)",
       "Bash(source:*)"
     ],
-    "defaultMode": "plan"
+    "defaultMode": "auto"
   },
   "hooks": {
     "Stop": [
@@ -156,5 +156,7 @@
     "swift-lsp@claude-plugins-official": true,
     "aidev@superhuman-aidev": true,
     "review@superhuman-aidev": true
-  }
+  },
+  "skipAutoPermissionPrompt": true,
+  "awaySummaryEnabled": false
 }
