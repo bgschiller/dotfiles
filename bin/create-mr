@@ -23,10 +23,41 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 
+# Detect platform from origin URL
+ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+if [ -z "$ORIGIN_URL" ]; then
+  log_error "No origin remote found"
+  exit 1
+fi
+
+REPO_TYPE=""
+if [[ "$ORIGIN_URL" =~ github\.com ]]; then
+  REPO_TYPE="github"
+elif [[ "$ORIGIN_URL" =~ gitlab ]]; then
+  REPO_TYPE="gitlab"
+else
+  log_error "Unable to determine if repository is GitHub or GitLab from origin: $ORIGIN_URL"
+  exit 1
+fi
+log_info "Detected repository type: $REPO_TYPE"
+
+# Pick the right CLI tool for the platform
+if [ "$REPO_TYPE" = "github" ]; then
+  PLATFORM_CLI="gh"
+  PLATFORM_INSTALL_URL="https://cli.github.com/"
+else
+  PLATFORM_CLI="glab"
+  PLATFORM_INSTALL_URL="https://gitlab.com/gitlab-org/cli"
+fi
+
 # Check required tools
-for tool in git glab claude jq; do
+for tool in git "$PLATFORM_CLI" claude jq; do
   if ! command -v "$tool" &>/dev/null; then
-    log_error "$tool is not installed or not in PATH"
+    if [ "$tool" = "$PLATFORM_CLI" ]; then
+      log_error "$tool is not installed. Install it from: $PLATFORM_INSTALL_URL"
+    else
+      log_error "$tool is not installed or not in PATH"
+    fi
     exit 1
   fi
 done
@@ -179,20 +210,38 @@ log_info "Final description length: ${#DESCRIPTION} characters"
 # Note: Keep DESCRIPTION_FILE around until MR is successfully created
 log_info "Editor file: $DESCRIPTION_FILE (will be cleaned up after MR creation)"
 
-# Create the merge request
-log_step "Creating merge request..."
-log_info "Running: glab mr create --title \"$TITLE\" --description <description> --target-branch \"$TARGET_BRANCH\" --yes"
-MR_OUTPUT=$(glab mr create \
-  --title "$TITLE" \
-  --description "$DESCRIPTION" \
-  --target-branch "$TARGET_BRANCH" \
-  --remove-source-branch \
-  --squash-before-merge \
-  --yes 2>&1)
-MR_EXIT_CODE=$?
+# Create the merge request / pull request
+if [ "$REPO_TYPE" = "github" ]; then
+  REQUEST_NOUN="PR"
+  REQUEST_SIGIL="#"
+  log_step "Creating pull request..."
+  log_info "Running: gh pr create --title \"$TITLE\" --body <description> --base \"$TARGET_BRANCH\""
+  set +e
+  MR_OUTPUT=$(gh pr create \
+    --title "$TITLE" \
+    --body "$DESCRIPTION" \
+    --base "$TARGET_BRANCH" 2>&1)
+  MR_EXIT_CODE=$?
+  set -e
+else
+  REQUEST_NOUN="MR"
+  REQUEST_SIGIL="!"
+  log_step "Creating merge request..."
+  log_info "Running: glab mr create --title \"$TITLE\" --description <description> --target-branch \"$TARGET_BRANCH\" --yes"
+  set +e
+  MR_OUTPUT=$(glab mr create \
+    --title "$TITLE" \
+    --description "$DESCRIPTION" \
+    --target-branch "$TARGET_BRANCH" \
+    --remove-source-branch \
+    --squash-before-merge \
+    --yes 2>&1)
+  MR_EXIT_CODE=$?
+  set -e
+fi
 
 if [ $MR_EXIT_CODE -ne 0 ]; then
-  log_error "glab mr create failed with exit code $MR_EXIT_CODE"
+  log_error "$PLATFORM_CLI failed with exit code $MR_EXIT_CODE"
   log_error "Output:"
   echo "$MR_OUTPUT" >&2
   log_error "Debug files preserved:"
@@ -201,14 +250,14 @@ if [ $MR_EXIT_CODE -ne 0 ]; then
   exit 1
 fi
 
-# Extract MR number from output
-log_info "Parsing glab output..."
+# Extract MR/PR number from output
+log_info "Parsing $PLATFORM_CLI output..."
 MR_URL=$(echo "$MR_OUTPUT" | grep -oE 'https://[^ ]+' | head -1)
 MR_NUMBER=$(echo "$MR_URL" | grep -oE '[0-9]+$')
 
 if [ -z "$MR_NUMBER" ]; then
-  log_error "Failed to extract MR number from output"
-  log_error "Full glab output:"
+  log_error "Failed to extract $REQUEST_NOUN number from output"
+  log_error "Full $PLATFORM_CLI output:"
   echo "$MR_OUTPUT" >&2
   log_error "Extracted URL: '$MR_URL'"
   log_error "Debug files preserved:"
@@ -217,87 +266,90 @@ if [ -z "$MR_NUMBER" ]; then
   exit 1
 fi
 
-log_info "Created MR !$MR_NUMBER: $MR_URL"
+log_info "Created $REQUEST_NOUN ${REQUEST_SIGIL}${MR_NUMBER}: $MR_URL"
 
 # Clean up temp files now that MR is successfully created
 rm -f "$DESCRIPTION_FILE" "$DEBUG_FILE"
 log_info "Cleaned up temporary files"
 
-# Get GitLab host and project from origin URL
-ORIGIN_URL=$(git remote get-url origin)
-GITLAB_HOST="gitlab.grammarly.io"
-if [[ "$ORIGIN_URL" =~ gitlab\.([^:]+) ]]; then
-  GITLAB_HOST="gitlab.${BASH_REMATCH[1]}"
-fi
+# Stacked-MR blocking dependency (GitLab only — GitHub has no equivalent API)
+if [ "$REPO_TYPE" = "gitlab" ]; then
+  GITLAB_HOST="gitlab.grammarly.io"
+  if [[ "$ORIGIN_URL" =~ gitlab\.([^:]+) ]]; then
+    GITLAB_HOST="gitlab.${BASH_REMATCH[1]}"
+  fi
 
-# Get project path
-PROJECT_PATH=$(glab repo view --output json 2>/dev/null | jq -r .path_with_namespace)
-if [ -z "$PROJECT_PATH" ]; then
-  log_error "Failed to get project path"
-  exit 1
-fi
+  # Get project path
+  PROJECT_PATH=$(glab repo view --output json 2>/dev/null | jq -r .path_with_namespace)
+  if [ -z "$PROJECT_PATH" ]; then
+    log_error "Failed to get project path"
+    exit 1
+  fi
 
-# Get project ID
-PROJECT_ID=$(glab repo view --output json 2>/dev/null | jq -r .id)
-if [ -z "$PROJECT_ID" ]; then
-  log_error "Failed to get project ID"
-  exit 1
-fi
+  # Get project ID
+  PROJECT_ID=$(glab repo view --output json 2>/dev/null | jq -r .id)
+  if [ -z "$PROJECT_ID" ]; then
+    log_error "Failed to get project ID"
+    exit 1
+  fi
 
-# If target branch is not main, create dependency on parent MR
-if [ "$TARGET_BRANCH" != "main" ]; then
-  log_step "Looking for parent MR (source branch: $TARGET_BRANCH)..."
-  log_info "Project ID: $PROJECT_ID"
-  log_info "API query: projects/$PROJECT_ID/merge_requests?source_branch=$TARGET_BRANCH&state=opened"
+  # If target branch is not main, create dependency on parent MR
+  if [ "$TARGET_BRANCH" != "main" ]; then
+    log_step "Looking for parent MR (source branch: $TARGET_BRANCH)..."
+    log_info "Project ID: $PROJECT_ID"
+    log_info "API query: projects/$PROJECT_ID/merge_requests?source_branch=$TARGET_BRANCH&state=opened"
 
-  # Find MR where source branch is our target branch
-  set +e
-  PARENT_MR_DATA=$(glab api "projects/$PROJECT_ID/merge_requests?source_branch=$TARGET_BRANCH&state=opened" 2>&1)
-  PARENT_MR_EXIT_CODE=$?
-  set -e
-
-  log_info "API response exit code: $PARENT_MR_EXIT_CODE"
-  log_info "API response: $PARENT_MR_DATA"
-
-  PARENT_MR_FIRST=$(echo "$PARENT_MR_DATA" | jq '.[0]' 2>/dev/null || echo "null")
-
-  if [ "$PARENT_MR_FIRST" != "null" ] && [ -n "$PARENT_MR_FIRST" ]; then
-    PARENT_MR_IID=$(echo "$PARENT_MR_FIRST" | jq -r .iid)
-    PARENT_MR_ID=$(echo "$PARENT_MR_FIRST" | jq -r .id)
-    log_info "Found parent MR !$PARENT_MR_IID (ID: $PARENT_MR_ID)"
-
-    log_step "Creating MR dependency..."
-    log_info "API call: POST projects/$PROJECT_ID/merge_requests/$MR_NUMBER/blocks?blocking_merge_request_id=$PARENT_MR_ID"
-
-    # Create blocking relationship: parent MR blocks this MR
-    # Note: blocking_merge_request_id must be the global ID (not IID) and a query parameter
+    # Find MR where source branch is our target branch
     set +e
-    BLOCK_RESPONSE=$(glab api -X POST "projects/$PROJECT_ID/merge_requests/$MR_NUMBER/blocks?blocking_merge_request_id=$PARENT_MR_ID" 2>&1)
-    BLOCK_EXIT_CODE=$?
+    PARENT_MR_DATA=$(glab api "projects/$PROJECT_ID/merge_requests?source_branch=$TARGET_BRANCH&state=opened" 2>&1)
+    PARENT_MR_EXIT_CODE=$?
     set -e
 
-    log_info "Block API exit code: $BLOCK_EXIT_CODE"
-    log_info "Block API response (truncated): $(echo "$BLOCK_RESPONSE" | head -c 200)..."
+    log_info "API response exit code: $PARENT_MR_EXIT_CODE"
+    log_info "API response: $PARENT_MR_DATA"
 
-    if [ $BLOCK_EXIT_CODE -eq 0 ]; then
-      log_info "Successfully created dependency: !$PARENT_MR_IID blocks !$MR_NUMBER"
+    PARENT_MR_FIRST=$(echo "$PARENT_MR_DATA" | jq '.[0]' 2>/dev/null || echo "null")
+
+    if [ "$PARENT_MR_FIRST" != "null" ] && [ -n "$PARENT_MR_FIRST" ]; then
+      PARENT_MR_IID=$(echo "$PARENT_MR_FIRST" | jq -r .iid)
+      PARENT_MR_ID=$(echo "$PARENT_MR_FIRST" | jq -r .id)
+      log_info "Found parent MR !$PARENT_MR_IID (ID: $PARENT_MR_ID)"
+
+      log_step "Creating MR dependency..."
+      log_info "API call: POST projects/$PROJECT_ID/merge_requests/$MR_NUMBER/blocks?blocking_merge_request_id=$PARENT_MR_ID"
+
+      # Create blocking relationship: parent MR blocks this MR
+      # Note: blocking_merge_request_id must be the global ID (not IID) and a query parameter
+      set +e
+      BLOCK_RESPONSE=$(glab api -X POST "projects/$PROJECT_ID/merge_requests/$MR_NUMBER/blocks?blocking_merge_request_id=$PARENT_MR_ID" 2>&1)
+      BLOCK_EXIT_CODE=$?
+      set -e
+
+      log_info "Block API exit code: $BLOCK_EXIT_CODE"
+      log_info "Block API response (truncated): $(echo "$BLOCK_RESPONSE" | head -c 200)..."
+
+      if [ $BLOCK_EXIT_CODE -eq 0 ]; then
+        log_info "Successfully created dependency: !$PARENT_MR_IID blocks !$MR_NUMBER"
+      else
+        log_warn "Failed to create MR dependency"
+        log_warn "Exit code: $BLOCK_EXIT_CODE"
+        log_warn "Response: $BLOCK_RESPONSE"
+      fi
     else
-      log_warn "Failed to create MR dependency"
-      log_warn "Exit code: $BLOCK_EXIT_CODE"
-      log_warn "Response: $BLOCK_RESPONSE"
+      log_warn "No parent MR found with source branch '$TARGET_BRANCH'"
+      log_warn "Parsed first MR: $PARENT_MR_FIRST"
     fi
-  else
-    log_warn "No parent MR found with source branch '$TARGET_BRANCH'"
-    log_warn "Parsed first MR: $PARENT_MR_FIRST"
   fi
+elif [ "$TARGET_BRANCH" != "main" ]; then
+  log_info "Stacked PR detected (target: $TARGET_BRANCH). GitHub has no blocking-PR API; skipping dependency setup."
 fi
 
 # Generate Slack message
 log_step "Generating Slack review request..."
 echo ""
 echo "=== Slack Message ==="
-echo "Please review my MR to [$TITLE]($MR_URL)"
+echo "Please review my $REQUEST_NOUN to [$TITLE]($MR_URL)"
 echo "===================="
 echo ""
 
-log_info "Done! MR created successfully."
+log_info "Done! $REQUEST_NOUN created successfully."

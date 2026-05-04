@@ -1,28 +1,53 @@
 ---
 name: create-mr
-description: Create a GitLab merge request using conversation context
+description: Create a GitHub PR or GitLab MR using conversation context
 disable-model-invocation: true
 allowed-tools:
   - Read
   - Write
   - Glob
   - Bash(git:*)
+  - Bash(gh pr create:*)
+  - Bash(gh repo view:*)
   - Bash(glab mr create:*)
   - Bash(glab repo view:*)
   - Bash(~/.claude/skills/create-mr/scripts/glab-mr-helper.sh:*)
   - Bash(~/.claude/skills/human-review/scripts/open-editor.sh:*)
 ---
 
-# Create Merge Request
+# Create Merge Request / Pull Request
 
-Create a GitLab merge request using the context already present in this Claude session.
+Create a GitHub pull request or GitLab merge request using the context already
+present in this Claude session. Detect the platform from the origin URL and use
+the matching CLI.
 
-## glab CLI Reference
-
-The `glab` CLI is GitLab's official command-line tool. Key commands:
+## Detect platform
 
 ```bash
-# Create MR with title and description
+ORIGIN_URL=$(git remote get-url origin)
+if [[ "$ORIGIN_URL" =~ github\.com ]]; then
+  REPO_TYPE=github  # use gh
+elif [[ "$ORIGIN_URL" =~ gitlab ]]; then
+  REPO_TYPE=gitlab  # use glab
+fi
+```
+
+## CLI reference
+
+GitHub (`gh`):
+
+```bash
+# Create PR
+gh pr create --title "Title" --body "Body" --base main
+
+# View repo info
+gh repo view
+```
+
+GitLab (`glab`):
+
+```bash
+# Create MR
 glab mr create --title "Title" --description "Body" --target-branch main --remove-source-branch --squash-before-merge --yes
 
 # View project info (includes project ID)
@@ -32,7 +57,10 @@ glab repo view
 glab mr list --state opened
 ```
 
-For complex API operations (finding parent MRs, creating blocking relationships), use the helper script at `~/.claude/skills/create-mr/scripts/glab-mr-helper.sh`.
+For GitLab-specific API operations (finding parent MRs, creating blocking
+relationships), use the helper script at
+`~/.claude/skills/create-mr/scripts/glab-mr-helper.sh`. There is no GitHub
+equivalent — see step 6.
 
 ## Steps
 
@@ -80,20 +108,20 @@ git diff $TARGET...HEAD
 
 #### Description Guidelines
 
-Brian's preferred MR description format:
+Brian's preferred description format:
 
 1. **Context first**: Explain the problem or need that motivated this change
 2. **Approach**: Describe what you did and why you chose this approach
 3. **Testing**: How was this tested? Include manual testing steps if applicable
 4. **Conversation context**: Reference relevant discussion from this Claude session
 
-Check for MR templates:
-- `.gitlab/merge_request_templates/Default.md`
-- `.gitlab/merge_request_templates/default.md`
+Check for templates:
+- GitLab: `.gitlab/merge_request_templates/Default.md` or `.gitlab/merge_request_templates/default.md`
+- GitHub: `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE.md`
 
 If a template exists, follow its structure.
 
-### 4. Open MR content in editor
+### 4. Open content in editor
 
 Write the draft to a file in the current directory:
 
@@ -118,7 +146,20 @@ After Brian saves and closes:
 - If file is empty/whitespace only, abort
 - Delete the temp file after parsing
 
-### 5. Create the merge request
+### 5. Create the MR or PR
+
+Use the invocation that matches `REPO_TYPE`.
+
+GitHub:
+
+```bash
+gh pr create \
+  --title "Title from editor" \
+  --body "Description from editor" \
+  --base "$TARGET"
+```
+
+GitLab:
 
 ```bash
 glab mr create \
@@ -130,47 +171,49 @@ glab mr create \
   --yes
 ```
 
-Extract the MR URL and number from output.
+Extract the URL and number from the output (the URL ends in the number).
 
-### 6. Handle stacked MRs (blocking dependencies)
+### 6. Handle stacked MRs (GitLab only)
 
-**When the target branch is not `main`**, this is a stacked MR. Set up blocking:
+**When the target branch is not `main`**, this is a stacked change.
 
-Use the helper script:
+On **GitLab**, set up a blocking dependency so the parent must merge first:
 
 ```bash
 ~/.claude/skills/create-mr/scripts/glab-mr-helper.sh set-blocking <this-mr-number> <target-branch>
 ```
 
-This script:
+The helper:
 1. Finds the open MR where source branch = our target branch (the parent MR)
 2. Creates a blocking relationship so the parent must merge first
 
-**Why this matters**: GitLab's "merge trains" work better when MRs have explicit dependencies. The blocking relationship prevents merging this MR before its parent.
-
 If the parent MR can't be found or the blocking setup fails, warn but don't fail the whole operation.
+
+On **GitHub**, skip this step. GitHub has no blocking-PR API. The PR is created
+against the chosen target branch and that's it.
 
 ### 7. Generate Slack review request
 
-Output for Brian to copy:
+Output for Brian to copy. Use "MR" for GitLab, "PR" for GitHub:
 
 ```
-Please review my MR to [$TITLE]($MR_URL)
+Please review my MR to [$TITLE]($URL)
+Please review my PR to [$TITLE]($URL)
 ```
 
 ## Key Points
 
 - Leverage conversation context from this Claude session
-- The MR description should reflect the reasoning and discussion, not just commits
-- Always confirm with Brian before creating the MR
+- The description should reflect the reasoning and discussion, not just commits
+- Always confirm with Brian before creating the MR/PR
 - Handle errors gracefully and report them clearly
 
 ## Example Workflow
 
 ```
-Claude: "I see you're on branch feature/add-validation. Let me check if it's pushed..."
+Claude: "I see you're on branch feature/add-validation in a GitHub repo. Let me check if it's pushed..."
 Claude: "Branch is pushed. Target branch is 'develop'."
-Claude: "Based on our work, here's the proposed MR:
+Claude: "Based on our work, here's the proposed PR:
 
 Title: Add input validation to user registration
 
@@ -182,5 +225,5 @@ Does this look good? Should I proceed?"
 
 Brian: "yes"
 
-Claude: [creates MR, sets up blocking if needed, shows Slack message]
+Claude: [creates PR via gh, shows Slack message]
 ```
