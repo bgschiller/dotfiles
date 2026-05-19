@@ -34,6 +34,8 @@
     ~/.gitconfig-work:
       if:
     ~/.config/jrnl/jrnl.yaml:
+    ~/.config/pnpm/config.yaml:
+      path: pnpm/config.yaml
     ~/bin:
     ~/.claude:
     ~/.claude-personal:
