@@ -24,6 +24,7 @@ claude/backups/
 claude/sessions/
 claude/policy-limits.json
 claude/tasks/
+claude/.last-cleanup
 
 claude-personal/cache/
 claude-personal/debug/
@@ -51,6 +52,7 @@ claude-personal/backups/
 claude-personal/sessions/
 claude-personal/policy-limits.json
 claude-personal/tasks/
+claude-personal/.last-cleanup
 
 bin/prq
 bin/syncthing

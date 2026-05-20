@@ -288,3 +288,6 @@ alias git='git-branchless wrap --'
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Pi
+export PATH="/Users/brian/.local/share/fnm/node-versions/v22.22.0/installation/bin:$PATH"

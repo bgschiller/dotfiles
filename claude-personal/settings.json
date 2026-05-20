@@ -157,6 +157,7 @@
     "aidev@superhuman-aidev": true,
     "review@superhuman-aidev": true
   },
+  "awaySummaryEnabled": false,
   "skipAutoPermissionPrompt": true,
-  "awaySummaryEnabled": false
+  "model": "sonnet"
 }
