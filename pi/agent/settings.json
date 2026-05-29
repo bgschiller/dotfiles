@@ -28,7 +28,6 @@
       "themes": [
         "-themes/nightowl.json"
       ]
-    },
-    "npm:pi-bar"
+    }
   ]
 }
