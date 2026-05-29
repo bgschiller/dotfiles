@@ -38,6 +38,7 @@
       path: pnpm/config.yaml
     ~/bin:
     ~/.claude:
+    ~/.pi:
     ~/.claude-personal:
     ~/.vscode/settings.json:
       path: vscode/settings.json

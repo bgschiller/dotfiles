@@ -1,0 +1,34 @@
+{
+  "lastChangelogVersion": "0.77.0",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-sonnet-4-6",
+  "defaultThinkingLevel": "minimal",
+  "packages": [
+    {
+      "source": "npm:mitsupi",
+      "extensions": [
+        "+extensions/context.ts",
+        "-extensions/control.ts",
+        "-extensions/go-to-bed.ts",
+        "-extensions/loop.ts",
+        "-extensions/multi-edit.ts",
+        "+extensions/answer.ts"
+      ],
+      "skills": [
+        "-skills/anachb/SKILL.md",
+        "-skills/apple-mail/SKILL.md",
+        "-skills/commit/SKILL.md",
+        "-skills/ghidra/SKILL.md",
+        "-skills/google-workspace/SKILL.md",
+        "-skills/oebb-scotty/SKILL.md",
+        "-skills/openscad/SKILL.md",
+        "-skills/sentry/SKILL.md",
+        "-skills/update-changelog/SKILL.md"
+      ],
+      "themes": [
+        "-themes/nightowl.json"
+      ]
+    },
+    "npm:pi-bar"
+  ]
+}
