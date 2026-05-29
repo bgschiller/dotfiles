@@ -25,6 +25,11 @@ claude/sessions/
 claude/policy-limits.json
 claude/tasks/
 claude/.last-cleanup
+claude/daemon.lock
+claude/daemon.status.json
+claude/daemon/
+claude/jobs/
+claude/remote-settings.json
 
 claude-personal/cache/
 claude-personal/debug/
@@ -53,6 +58,11 @@ claude-personal/sessions/
 claude-personal/policy-limits.json
 claude-personal/tasks/
 claude-personal/.last-cleanup
+claude-personal/daemon.lock
+claude-personal/daemon.status.json
+claude-personal/daemon/
+claude-personal/jobs/
+claude-personal/remote-settings.json
 
 bin/prq
 bin/syncthing
