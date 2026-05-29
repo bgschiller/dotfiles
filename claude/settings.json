@@ -168,7 +168,7 @@
     }
   },
   "alwaysThinkingEnabled": false,
+  "awaySummaryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
-  "skipAutoPermissionPrompt": true,
-  "awaySummaryEnabled": false
+  "skipAutoPermissionPrompt": true
 }
