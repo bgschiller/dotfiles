@@ -64,3 +64,4 @@ node_modules
 
 .claude/settings.local.json
 .worktrees
+.pi
