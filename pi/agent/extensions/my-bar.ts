@@ -2,15 +2,17 @@
  * my-bar — a custom footer extension based on pi-bar that adds a session cost segment.
  *
  * Segments (left to right):
- *   <model>  ❯  think:<level>  ❯  <context% / window>  ❯  $<session cost>  ❯  <extension statuses>
+ *   <model>  ❯  think:<level>  ❯  <context% / window>  ❯  $<session cost>  ❯  <branch>  ❯  <worktree?>  ❯  <extension statuses>
  *
  * Example:
- *   claude-sonnet-4-6  ❯  think:off  ❯  2.6% / 200k  ❯  $0.0142  ❯  stash:3 items
+ *   claude-sonnet-4-6  ❯  think:off  ❯  2.6% / 200k  ❯  $0.0142  ❯  ⎇ main  ❯  𖠰 dotfiles  ❯  stash:3 items
  *
  * Drop-in replacement for pi-bar. Disable pi-bar in settings.json and load this instead.
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { execSync } from "node:child_process";
+import path from "node:path";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -90,6 +92,52 @@ function stripAnsi(text: string): string {
   return text.replace(ANSI_PATTERN, "");
 }
 
+function getGitBranch(cwd: string): string | null {
+  try {
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    if (branch === "HEAD") {
+      return execSync("git rev-parse --short HEAD", {
+        cwd,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    }
+
+    return branch;
+  } catch {
+    return null;
+  }
+}
+
+function getWorktreeName(projectDir: string): string | null {
+  try {
+    const worktreeOutput = execSync("git worktree list", {
+      cwd: projectDir,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const worktreeCount = worktreeOutput.trim().split("\n").length;
+
+    if (worktreeCount > 1) {
+      const repoRoot = execSync("git rev-parse --show-toplevel", {
+        cwd: projectDir,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+      return path.basename(repoRoot);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ── extension ─────────────────────────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI) {
@@ -118,6 +166,8 @@ export default function (pi: ExtensionAPI) {
 
           const sessionCost = computeSessionCost(ctx);
           const costText = formatCost(sessionCost);
+          const branch = getGitBranch(ctx.cwd);
+          const worktree = getWorktreeName(ctx.cwd);
 
           // Extension statuses from other extensions (e.g. stash)
           const extensionStatuses = footerData?.getExtensionStatuses?.() ?? new Map<string, string>();
@@ -132,6 +182,8 @@ export default function (pi: ExtensionAPI) {
             theme.fg(thinkingColor(thinkingLevel), `think:${thinkingLevel}`),
             theme.fg(contextColor(usage?.percent), contextText),
             theme.fg(sessionCost > 0 ? "text" : "muted", costText),
+            ...(branch ? [theme.fg("text", `⎇ ${branch}`)] : []),
+            ...(worktree ? [theme.fg("accent", `𖠰 ${worktree}`)] : []),
             ...statusParts.map((p) => theme.fg("text", p)),
           ];
 
