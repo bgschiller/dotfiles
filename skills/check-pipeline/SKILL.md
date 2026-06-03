@@ -2,7 +2,7 @@
 name: check-pipeline
 description: Check GitLab CI pipeline status and investigate failures. Use when user asks about CI status, pipeline failures, or wants to debug failed jobs.
 allowed-tools:
-  - Bash(~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh:*)
+  - Bash(scripts/glab-pipeline.sh:*)
   - Bash(glab ci status:*)
   - Bash(glab mr list:*)
   - Bash(glab mr view:*)
@@ -37,7 +37,7 @@ The helper script filters out `source: "external"` pipelines (security scans) au
 Use the allowlisted helper script for all API calls:
 
 ```bash
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh <command> [args]
+scripts/glab-pipeline.sh <command> [args]
 ```
 
 Commands:
@@ -65,7 +65,7 @@ glab mr list --source-branch $(git rev-parse --abbrev-ref HEAD)
 
 ```bash
 # List pipelines for the MR (MR number from step 1)
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh mr-pipelines <mr-number>
+scripts/glab-pipeline.sh mr-pipelines <mr-number>
 ```
 
 Look at the output:
@@ -76,7 +76,7 @@ Look at the output:
 ### Step 3: Find Failed Jobs
 
 ```bash
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh failed-jobs <pipeline-id>
+scripts/glab-pipeline.sh failed-jobs <pipeline-id>
 ```
 
 This shows failed job names and URLs.
@@ -85,19 +85,19 @@ This shows failed job names and URLs.
 
 ```bash
 # Get full trace (may be large)
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-trace <job-id>
+scripts/glab-pipeline.sh job-trace <job-id>
 
 # Get last 200 lines
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-trace <job-id> | tail -200
+scripts/glab-pipeline.sh job-trace <job-id> | tail -200
 
 # Search for errors
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-trace <job-id> | grep -E "(FAIL|Error|error:|failed)" | head -30
+scripts/glab-pipeline.sh job-trace <job-id> | grep -E "(FAIL|Error|error:|failed)" | head -30
 ```
 
 ### Step 5: Get Job Details
 
 ```bash
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-info <job-id>
+scripts/glab-pipeline.sh job-info <job-id>
 ```
 
 Returns: `id`, `name`, `status`, `failure_reason`, `started_at`, `finished_at`, `duration`, `web_url`
@@ -118,8 +118,8 @@ This is common! The branch pipeline may run only security scans while the MR pip
 
 ```bash
 # Compare branch vs MR pipelines
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh branch-pipelines
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh mr-pipelines <mr-number>
+scripts/glab-pipeline.sh branch-pipelines
+scripts/glab-pipeline.sh mr-pipelines <mr-number>
 ```
 
 ### Find Test Failures in Logs
@@ -128,19 +128,19 @@ Job logs can be large and truncated. Search strategically:
 
 ```bash
 # Look for test failures
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-trace <job-id> | grep -E "(FAIL|✗|×|Test Files.*failed)" | head -20
+scripts/glab-pipeline.sh job-trace <job-id> | grep -E "(FAIL|✗|×|Test Files.*failed)" | head -20
 
 # Look for build errors
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-trace <job-id> | grep -E "(Error:|error:|ELIFECYCLE|exit code)" | head -20
+scripts/glab-pipeline.sh job-trace <job-id> | grep -E "(Error:|error:|ELIFECYCLE|exit code)" | head -20
 
 # Get context around errors
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-trace <job-id> | grep -B5 -A10 "FAIL" | head -50
+scripts/glab-pipeline.sh job-trace <job-id> | grep -B5 -A10 "FAIL" | head -50
 ```
 
 ### Check Pipeline Source
 
 ```bash
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh pipeline-info <pipeline-id> | jq -r '.source'
+scripts/glab-pipeline.sh pipeline-info <pipeline-id> | jq -r '.source'
 ```
 
 Common sources:
@@ -179,14 +179,14 @@ glab mr list --source-branch $(git rev-parse --abbrev-ref HEAD)
 # Output: !4674 modernize-document-context
 
 # Get MR pipelines
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh mr-pipelines 4674
+scripts/glab-pipeline.sh mr-pipelines 4674
 # Output shows pipeline 4467641 failed
 
 # Find failed jobs
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh failed-jobs 4467641
+scripts/glab-pipeline.sh failed-jobs 4467641
 # Output: unit tests: failed - https://...
 
 # Get logs
-~/.claude/skills/check-pipeline/scripts/glab-pipeline.sh job-trace 62708639 | tail -200
+scripts/glab-pipeline.sh job-trace 62708639 | tail -200
 # Analyze the failure...
 ```

@@ -2,7 +2,7 @@
 name: human-review
 description: Open a document for human review and editing. Use when a document needs Brian's input, review, or approval before proceeding.
 allowed-tools:
-  - Bash(~/.claude/skills/human-review/scripts/open-editor.sh:*)
+  - Bash(scripts/open-editor.sh:*)
   - Read
   - Write
 ---
@@ -22,7 +22,7 @@ If no path is provided, ask Brian what document to open.
 ### Step 1: Open the document for review
 
 ```bash
-~/.claude/skills/human-review/scripts/open-editor.sh "$DOCUMENT"
+scripts/open-editor.sh "$DOCUMENT"
 ```
 
 The script detects the environment and opens the editor appropriately:

@@ -11,8 +11,8 @@ allowed-tools:
   - Bash(gh repo view:*)
   - Bash(glab mr create:*)
   - Bash(glab repo view:*)
-  - Bash(~/.claude/skills/create-mr/scripts/glab-mr-helper.sh:*)
-  - Bash(~/.claude/skills/human-review/scripts/open-editor.sh:*)
+  - Bash(scripts/glab-mr-helper.sh:*)
+  - Bash(../human-review/scripts/open-editor.sh:*)
 ---
 
 # Create Merge Request / Pull Request
@@ -59,7 +59,7 @@ glab mr list --state opened
 
 For GitLab-specific API operations (finding parent MRs, creating blocking
 relationships), use the helper script at
-`~/.claude/skills/create-mr/scripts/glab-mr-helper.sh`. There is no GitHub
+`scripts/glab-mr-helper.sh`. There is no GitHub
 equivalent — see step 6.
 
 ## Steps
@@ -137,7 +137,7 @@ Write the draft to a file in the current directory:
 Open the file for Brian to review and edit:
 
 ```bash
-~/.claude/skills/human-review/scripts/open-editor.sh mr-branch-name.md
+../human-review/scripts/open-editor.sh mr-branch-name.md
 ```
 
 After Brian saves and closes:
@@ -180,7 +180,7 @@ Extract the URL and number from the output (the URL ends in the number).
 On **GitLab**, set up a blocking dependency so the parent must merge first:
 
 ```bash
-~/.claude/skills/create-mr/scripts/glab-mr-helper.sh set-blocking <this-mr-number> <target-branch>
+scripts/glab-mr-helper.sh set-blocking <this-mr-number> <target-branch>
 ```
 
 The helper:

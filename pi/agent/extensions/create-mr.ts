@@ -260,7 +260,7 @@ ${templateContents}
    - first line: markdown heading with the title
    - blank line
    - description body
-5. Ask Brian to review/edit that file in an editor. Prefer \`code --wait mr-${context.currentBranch.replace(/[^a-zA-Z0-9._-]+/g, "-")}.md\` over \`$EDITOR\`.
+5. Ask Brian to review/edit that file using the shared \`human-review\` skill.
 6. After Brian approves the file contents, parse the title from the first line and create the ${requestNoun.toLowerCase()} with:
    \`${createCommand}\`
 7. ${context.repoType === "gitlab"
