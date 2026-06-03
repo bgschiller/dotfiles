@@ -1,7 +1,7 @@
 {
-  "lastChangelogVersion": "0.77.0",
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-4-6",
+  "lastChangelogVersion": "0.78.0",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "minimal",
   "packages": [
     {
@@ -29,5 +29,16 @@
         "-themes/nightowl.json"
       ]
     }
+  ],
+  "enabledModels": [
+    "deepseek/deepseek-v4-flash",
+    "deepseek/deepseek-v4-pro",
+    "openai-codex/gpt-5.5",
+    "openai-codex/gpt-5.4",
+    "openai-codex/gpt-5.4-mini",
+    "anthropic/claude-sonnet-4-6",
+    "anthropic/claude-opus-4-8",
+    "anthropic/claude-opus-4-7",
+    "anthropic/claude-haiku-4-5"
   ]
 }

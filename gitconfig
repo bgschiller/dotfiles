@@ -69,3 +69,5 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
+[maintenance]
+	repo = /Users/brian/work/web-monorepo/boston

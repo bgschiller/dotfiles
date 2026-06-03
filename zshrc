@@ -276,11 +276,15 @@ if [[ -n "$SSH_CONNECTION" ]] && command -v tmux &> /dev/null && [[ -z "$TMUX" ]
   exit
 fi
 
-# Pi (must come before fnm so fnm's multishell PATH takes precedence for node/npm/pnpm)
-export PATH="/Users/brian/.local/share/fnm/node-versions/v22.22.0/installation/bin:$PATH"
+# Pi
+pi() {
+  fnm exec --using=default pi "$@"
+}
 
 # fnm (Fast Node Manager) - per-shell node versions, reads .node-version/.nvmrc
-eval "$(fnm env --use-on-cd)"
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --use-on-cd)"
+fi
 
 alias git='git-branchless wrap --'
 

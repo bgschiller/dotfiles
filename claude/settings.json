@@ -151,7 +151,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/home/brian/bin/claude-statusline",
+    "command": "/Users/brian/bin/claude-statusline",
     "padding": 0
   },
   "enabledPlugins": {
@@ -170,5 +170,6 @@
   "alwaysThinkingEnabled": false,
   "awaySummaryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
   "skipAutoPermissionPrompt": true
 }
