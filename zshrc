@@ -276,17 +276,21 @@ if [[ -n "$SSH_CONNECTION" ]] && command -v tmux &> /dev/null && [[ -z "$TMUX" ]
   exit
 fi
 
-# Pi
-pi() {
-  fnm exec --using=default pi "$@"
-}
+if [ -d ~/.local/share/fnm ]; then
+ export PATH="$PATH:$HOME/.local/share/fnm"
+ pi() {
+    fnm exec --using=default pi "$@"
+  }
+fi
 
 # fnm (Fast Node Manager) - per-shell node versions, reads .node-version/.nvmrc
 if command -v fnm >/dev/null 2>&1; then
   eval "$(fnm env --use-on-cd)"
 fi
 
-alias git='git-branchless wrap --'
+if command -v git-branchless > /dev/null 2>&1; then
+  alias git='git-branchless wrap --'
+fi
 
 
 # bun completions
@@ -295,3 +299,4 @@ alias git='git-branchless wrap --'
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
