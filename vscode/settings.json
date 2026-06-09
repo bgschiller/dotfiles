@@ -28,7 +28,7 @@
     "*": true,
     "plaintext": false,
     "markdown": true,
-    "scminput": false
+    "scminput": false,
   },
   "workbench.colorTheme": "Catppuccin Mocha",
   "editor.autoSurround": "never",
@@ -43,11 +43,11 @@
   "gitlens.launchpad.indicator.enabled": false,
   "github.copilot.editor.enableAutoCompletions": true,
   "[rust]": {
-    "editor.defaultFormatter": "ms-vsliveshare.vsliveshare"
+    "editor.defaultFormatter": "ms-vsliveshare.vsliveshare",
   },
   "rewrap.wrappingColumn": 100,
   "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
   },
   // we try to make semantic highlighting look good
   "editor.semanticHighlighting.enabled": true,
@@ -58,7 +58,7 @@
   "typescript.tsserver.log": "off",
   "chat.editing.alwaysSaveWithGeneratedChanges": true,
   "extensions.experimental.affinity": {
-    "asvetliakov.vscode-neovim": 1
+    "asvetliakov.vscode-neovim": 1,
   },
   "vim.leader": "<space>",
   "vim.easymotion": true,
@@ -66,52 +66,53 @@
   "vim.disableExtension": false,
   "vim.normalModeKeyBindingsNonRecursive": [
     // Use s to enter easymotion mode, not <leader><leader>s
-    { "before": ["s"], "after": ["<leader>", "<leader>", "s"] }
+    { "before": ["s"], "after": ["<leader>", "<leader>", "s"] },
   ],
   "vim.normalModeKeyBindings": [
     {
       "before": ["K"],
-      "commands": ["editor.action.showHover"]
+      "commands": ["editor.action.showHover"],
     },
     {
       "before": ["<leader>", "<leader>"],
-      "commands": ["workbench.actions.quickOpen"]
+      "commands": ["workbench.actions.quickOpen"],
     },
     {
       "before": ["<leader>", "e"],
-      "commands": ["workbench.files.action.focusFilesExplorer"]
+      "commands": ["workbench.files.action.focusFilesExplorer"],
     },
     {
       "before": ["<leader>", "/"],
-      "commands": ["workbench.action.findInFiles"]
+      "commands": ["workbench.action.findInFiles"],
     },
     {
       "before": ["g", "r"],
-      "commands": ["editor.action.goToReferences"]
+      "commands": ["editor.action.goToReferences"],
     },
     {
       "before": ["g", "y"],
-      "commands": ["editor.action.goToTypeDefinition"]
+      "commands": ["editor.action.goToTypeDefinition"],
     },
     {
       "before": ["<leader>", "c", "r"],
-      "commands": ["editor.action.rename"]
+      "commands": ["editor.action.rename"],
     },
     {
       "before": ["<leader>", "c", "a"],
-      "commands": ["editor.action.quickFix"]
+      "commands": ["editor.action.quickFix"],
     },
     {
       "before": ["[", "e"],
-      "commands": ["editor.action.marker.next"]
+      "commands": ["editor.action.marker.next"],
     },
     {
       "before": ["]", "e"],
-      "commands": ["editor.action.marker.prev"]
-    }
+      "commands": ["editor.action.marker.prev"],
+    },
   ],
   "git.autofetch": true,
   "terminal.integrated.fontFamily": "MesloLGM Nerd Font",
   "cursor.composer.shouldAllowCustomModes": true,
-  "update.showReleaseNotes": false
+  "update.showReleaseNotes": false,
+  "chat.viewSessions.orientation": "stacked",
 }
