@@ -117,12 +117,7 @@
       "Read(~/.claude/projects/*/*/tool-results/*)"
     ],
     "deny": [],
-    "ask": [
-      "Bash(curl:*)",
-      "Bash(node -e:*)",
-      "Bash(rm:*)",
-      "Bash(source:*)"
-    ],
+    "ask": ["Bash(curl:*)", "Bash(node -e:*)", "Bash(rm:*)", "Bash(source:*)"],
     "defaultMode": "auto"
   },
   "model": "opus",
@@ -151,7 +146,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/brian/bin/claude-statusline",
+    "command": "claude-statusline",
     "padding": 0
   },
   "enabledPlugins": {
