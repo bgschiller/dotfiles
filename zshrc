@@ -276,12 +276,100 @@ if [[ -n "$SSH_CONNECTION" ]] && command -v tmux &> /dev/null && [[ -z "$TMUX" ]
   exit
 fi
 
-if [ -d ~/.local/share/fnm ]; then
- export PATH="$PATH:$HOME/.local/share/fnm"
- pi() {
-    fnm exec --using=default pi "$@"
-  }
+if [[ -d "$HOME/.local/share/fnm" && ":$PATH:" != *":$HOME/.local/share/fnm:"* ]]; then
+  export PATH="$PATH:$HOME/.local/share/fnm"
 fi
+
+# Pi
+pi() {
+  local pi_config_dir pi_model_scope
+  local -a personal_scrub work_scrub selected_scrub
+
+  # Keep model-provider credentials scoped to the tree where they are allowed.
+  # Secrets in auth.json are also split by PI_CODING_AGENT_DIR below.
+  personal_scrub=(
+    -u ANTHROPIC_API_KEY
+    -u OPENAI_API_KEY
+    -u AZURE_OPENAI_API_KEY
+    -u AZURE_OPENAI_BASE_URL
+    -u AZURE_OPENAI_RESOURCE_NAME
+    -u AZURE_OPENAI_API_VERSION
+    -u AZURE_OPENAI_DEPLOYMENT_NAME_MAP
+    -u AI_GATEWAY_API_KEY
+    -u CLOUDFLARE_API_KEY
+    -u CLOUDFLARE_ACCOUNT_ID
+    -u CLOUDFLARE_GATEWAY_ID
+    -u AWS_PROFILE
+    -u AWS_ACCESS_KEY_ID
+    -u AWS_SECRET_ACCESS_KEY
+    -u AWS_SESSION_TOKEN
+    -u AWS_BEARER_TOKEN_BEDROCK
+    -u GOOGLE_APPLICATION_CREDENTIALS
+    -u GOOGLE_CLOUD_PROJECT
+    -u GOOGLE_CLOUD_LOCATION
+  )
+  work_scrub=(-u DEEPSEEK_API_KEY)
+
+  case "$PWD/" in
+    "$HOME/work/"*|"$HOME/dotfiles/"*)
+      pi_config_dir="$HOME/.pi/agent-work"
+      pi_model_scope="work"
+      selected_scrub=(${work_scrub[@]})
+      ;;
+    *)
+      pi_config_dir="$HOME/.pi/agent-personal"
+      pi_model_scope="personal"
+      selected_scrub=(${personal_scrub[@]})
+      ;;
+  esac
+
+  if [[ "$pi_model_scope" != "unscoped" ]]; then
+    local arg expecting value
+    for arg in "$@"; do
+      if [[ "$arg" == "--api-key" || "$arg" == --api-key=* ]]; then
+        echo "Refusing pi --api-key inside scoped trees; put keys in the scoped auth.json instead."
+        return 1
+      fi
+    done
+
+    expecting=""
+    for arg in "$@"; do
+      if [[ -n "$expecting" ]]; then
+        value="$arg"
+        expecting=""
+      else
+        case "$arg" in
+          --provider) expecting="provider"; continue ;;
+          --model) expecting="model"; continue ;;
+          --provider=*) value="${arg#--provider=}" ;;
+          --model=*) value="${arg#--model=}" ;;
+          *) continue ;;
+        esac
+      fi
+
+      if [[ "$pi_model_scope" == "personal" ]]; then
+        case "$value" in
+          anthropic|anthropic/*|openai|openai/*|openai-codex|openai-codex/*|azure-openai-responses|azure-openai-responses/*)
+            echo "Refusing corporate provider/model '$value' outside ~/work and ~/dotfiles."
+            return 1
+            ;;
+        esac
+      elif [[ "$pi_model_scope" == "work" ]]; then
+        case "$value" in
+          deepseek|deepseek/*)
+            echo "Refusing personal provider/model '$value' inside ~/work or ~/dotfiles."
+            return 1
+            ;;
+        esac
+      fi
+    done
+  fi
+
+  command env "${selected_scrub[@]}" \
+    PI_CODING_AGENT_DIR="$pi_config_dir" \
+    PI_MODEL_SCOPE="$pi_model_scope" \
+    fnm exec --using=default pi "$@"
+}
 
 # fnm (Fast Node Manager) - per-shell node versions, reads .node-version/.nvmrc
 if command -v fnm >/dev/null 2>&1; then
