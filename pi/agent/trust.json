@@ -1,7 +1,20 @@
 {
+  "/Users/brian": true,
   "/Users/brian/code/cpp-subprocess": true,
+  "/Users/brian/code/dinder-astro": true,
+  "/Users/brian/code/dinder-astro/src/content/meals": true,
+  "/Users/brian/code/eliot-newsletter": true,
   "/Users/brian/dotfiles": true,
+  "/Users/brian/work/apple-integrations": true,
+  "/Users/brian/work/common-api": true,
   "/Users/brian/work/engineering-journal": true,
   "/Users/brian/work/inkwell/athens": true,
-  "/Users/brian/work/inkwell/berlin": true
+  "/Users/brian/work/inkwell/berlin": true,
+  "/Users/brian/work/projectllama-win": true,
+  "/Users/brian/work/web-monorepo/atlanta": true,
+  "/Users/brian/work/web-monorepo/boston": true,
+  "/Users/brian/work/web-monorepo/charlotte": true,
+  "/Users/brian/work/web-monorepo/denver": true,
+  "/Users/brian/work/web-monorepo/erie": true,
+  "/Users/brian/work/web-monorepo/fresno": true
 }

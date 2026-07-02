@@ -2,3 +2,7 @@
 	path = dotbot
 	url = https://github.com/anishathalye/dotbot
 	ignore = dirty
+[submodule "skills/pi-skills"]
+	path = skills/pi-skills
+	url = https://github.com/badlogic/pi-skills.git
+	ignore = dirty

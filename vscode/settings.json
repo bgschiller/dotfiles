@@ -115,4 +115,5 @@
   "cursor.composer.shouldAllowCustomModes": true,
   "update.showReleaseNotes": false,
   "chat.viewSessions.orientation": "stacked",
+  "editor.accessibilitySupport": "off",
 }

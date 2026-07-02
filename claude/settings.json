@@ -120,7 +120,7 @@
     "ask": ["Bash(curl:*)", "Bash(node -e:*)", "Bash(rm:*)", "Bash(source:*)"],
     "defaultMode": "auto"
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "Stop": [
       {

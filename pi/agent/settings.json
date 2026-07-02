@@ -3,6 +3,7 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.5",
   "defaultThinkingLevel": "high",
+  "enableSkillCommands": true,
   "packages": [
     {
       "source": "npm:mitsupi",
@@ -28,7 +29,8 @@
       "themes": [
         "-themes/nightowl.json"
       ]
-    }
+    },
+    "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0"
   ],
   "enabledModels": [
     "deepseek/deepseek-v4-flash",
