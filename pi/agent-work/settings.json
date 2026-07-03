@@ -4,7 +4,7 @@
   "defaultThinkingLevel": "high",
   "enableSkillCommands": true,
   "extensions": [
-    "../agent/extensions/*.ts",
+    "../agent/extensions",
     "../extensions/model-scope.ts"
   ],
   "skills": [
