@@ -44,5 +44,6 @@
   "enabledModels": [
     "deepseek/deepseek-v4-pro",
     "deepseek/deepseek-v4-flash"
-  ]
+  ],
+  "lastChangelogVersion": "0.79.0"
 }
