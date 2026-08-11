@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# git rmb: rebase a modernize branch onto origin/main, resolving the common
+# package.json version-bump conflict by keeping origin/main's version and the
+# branch's other package.json changes, then regenerating pnpm-lock.yaml.
+
+err() {
+  printf 'git rmb: error: %s\n' "$*" >&2
+}
+
+info() {
+  printf 'git rmb: %s\n' "$*"
+}
+
+rebase_in_progress() {
+  local git_dir
+  git_dir=$(git rev-parse --git-dir 2>/dev/null) || return 1
+  [[ -d "$git_dir/rebase-merge" || -d "$git_dir/rebase-apply" ]]
+}
+
+conflicted_files() {
+  git diff --name-only --diff-filter=U
+}
+
+wait_for_index_lock() {
+  local lock_path
+  lock_path=$(git rev-parse --git-path index.lock)
+
+  local waited=0
+  while [[ -e "$lock_path" ]]; do
+    if (( waited >= 30 )); then
+      err "Git index lock still exists after ${waited}s: $lock_path"
+      err "Not removing it automatically; check for another git process, then retry."
+      exit 1
+    fi
+    if (( waited == 0 )); then
+      info "waiting for Git index lock to clear: $lock_path"
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+}
+
+abort_for_unexpected_conflicts() {
+  local unexpected=()
+  local file
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    if [[ "$(basename "$file")" != "package.json" && "$file" != "pnpm-lock.yaml" ]]; then
+      unexpected+=("$file")
+    fi
+  done < <(conflicted_files)
+
+  if (( ${#unexpected[@]} > 0 )); then
+    err "conflicts outside package.json and pnpm-lock.yaml; aborting rebase:"
+    printf '  %s\n' "${unexpected[@]}" >&2
+    git rebase --abort || true
+    exit 1
+  fi
+}
+
+resolve_package_json() {
+  local file=$1
+  local tmp_ours tmp_theirs version_line
+  tmp_ours=$(mktemp)
+  tmp_theirs=$(mktemp)
+  trap 'rm -f "$tmp_ours" "$tmp_theirs"' RETURN
+
+  # During a rebase, stage 2 is the onto side (origin/main) and stage 3 is the
+  # commit being replayed (the modernize branch).
+  git show ":2:$file" > "$tmp_ours"
+  git show ":3:$file" > "$tmp_theirs"
+
+  version_line=$(grep -m 1 '^[[:space:]]*"version"[[:space:]]*:' "$tmp_ours" || true)
+  if [[ -z "$version_line" ]]; then
+    err "could not find a version line in origin/main copy of $file"
+    git rebase --abort || true
+    exit 1
+  fi
+
+  python3 - "$tmp_theirs" "$file" "$version_line" <<'PY'
+import sys
+source, dest, version_line = sys.argv[1:4]
+with open(source, encoding="utf-8") as f:
+    lines = f.readlines()
+for i, line in enumerate(lines):
+    if '"version"' in line and ':' in line:
+        newline = "\n" if line.endswith("\n") else ""
+        lines[i] = version_line + newline
+        break
+else:
+    raise SystemExit(f"could not find a version line in branch copy of {dest}")
+with open(dest, "w", encoding="utf-8") as f:
+    f.writelines(lines)
+PY
+
+  trap - RETURN
+  rm -f "$tmp_ours" "$tmp_theirs"
+}
+
+resolve_conflicts_once() {
+  abort_for_unexpected_conflicts
+
+  local file
+  local resolved_files=()
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    case "$file" in
+      pnpm-lock.yaml)
+        info "using branch copy of pnpm-lock.yaml as input to pnpm install"
+        git show ":3:$file" > "$file"
+        resolved_files+=("$file")
+        ;;
+      */package.json|package.json)
+        info "resolving $file with origin/main version and branch changes"
+        resolve_package_json "$file"
+        resolved_files+=("$file")
+        ;;
+    esac
+  done < <(conflicted_files)
+
+  info "running pnpm install"
+  pnpm install
+
+  if [[ -f pnpm-lock.yaml ]]; then
+    resolved_files+=("pnpm-lock.yaml")
+  fi
+  wait_for_index_lock
+  git add -- "${resolved_files[@]}"
+
+  info "continuing rebase"
+  set +e
+  EDITOR=true git rebase --continue
+  local continue_status=$?
+  set -e
+
+  if (( continue_status != 0 )) && ! rebase_in_progress; then
+    err "git rebase --continue failed"
+    exit "$continue_status"
+  fi
+}
+
+main() {
+  git rev-parse --show-toplevel >/dev/null
+
+  local original_head=""
+
+  if rebase_in_progress; then
+    info "rebase already in progress; resolving current conflicts"
+  else
+    original_head=$(git rev-parse HEAD)
+    info "rebasing onto origin/main"
+    if git rebase origin/main; then
+      info "rebase completed without conflicts"
+      if [[ "$(git rev-parse HEAD)" == "$original_head" ]]; then
+        info "branch was already up to date; nothing to push"
+        exit 0
+      fi
+      info "pushing with --force-with-lease"
+      git push --force-with-lease
+      exit 0
+    fi
+  fi
+
+  while rebase_in_progress; do
+    if [[ -z "$(conflicted_files)" ]]; then
+      err "rebase stopped but no conflicted files were found; resolve manually"
+      exit 1
+    fi
+    resolve_conflicts_once
+  done
+
+  info "rebase completed"
+  if [[ -n "$original_head" && "$(git rev-parse HEAD)" == "$original_head" ]]; then
+    info "branch was already up to date; nothing to push"
+    exit 0
+  fi
+  info "pushing with --force-with-lease"
+  git push --force-with-lease
+}
+
+main "$@"
