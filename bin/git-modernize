@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage: git-modernize <lib-name>
+
+Open web-monorepo in tmux via prq, create branch modernize-<lib-name>,
+then start: pi /modernize <lib-name>
+EOF
+}
+
+err() {
+  printf 'git-modernize: error: %s\n' "$*" >&2
+}
+
+if (( $# != 1 )); then
+  usage
+  exit 2
+fi
+
+lib_name=$1
+branch="modernize-${lib_name}"
+
+if [[ -z "$lib_name" ]]; then
+  err "lib-name must not be empty"
+  exit 2
+fi
+
+if ! command -v prq >/dev/null 2>&1; then
+  err "prq not found in PATH"
+  exit 127
+fi
+
+if ! command -v tmux >/dev/null 2>&1; then
+  err "tmux not found in PATH"
+  exit 127
+fi
+
+printf -v quoted_branch '%q' "$branch"
+printf -v quoted_lib '%q' "$lib_name"
+
+target=$(prq open web-monorepo --target-only)
+
+tmux send-keys -t "$target" "git switch -c ${quoted_branch}" Enter
+tmux send-keys -t "$target" "pi \"/modernize ${quoted_lib}\"" Enter
+
+printf 'Opened %s on %s and started modernization for %s\n' "$branch" "$target" "$lib_name"
