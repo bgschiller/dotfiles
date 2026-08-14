@@ -39,6 +39,7 @@
     ~/bin:
     ~/.claude:
     ~/.pi:
+    ~/.agents:
     ~/.claude-personal:
     ~/.vscode/settings.json:
       path: vscode/settings.json
