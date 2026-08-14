@@ -42,7 +42,6 @@ printf -v quoted_lib '%q' "$lib_name"
 
 target=$(prq open web-monorepo --target-only)
 
-tmux send-keys -t "$target" "git switch -c ${quoted_branch}" Enter
-tmux send-keys -t "$target" "pi \"/modernize ${quoted_lib}\"" Enter
+tmux send-keys -t "$target" "git switch -c ${quoted_branch} && pi \"/modernize ${quoted_lib}\"" Enter
 
 printf 'Opened %s on %s and started modernization for %s\n' "$branch" "$target" "$lib_name"

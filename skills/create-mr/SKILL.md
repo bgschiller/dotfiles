@@ -116,6 +116,7 @@ Brian's preferred description format:
 4. **Conversation context**: Reference relevant discussion from this Claude session
 
 Check for templates:
+
 - GitLab: `.gitlab/merge_request_templates/Default.md` or `.gitlab/merge_request_templates/default.md`
 - GitHub: `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE.md`
 
@@ -141,10 +142,11 @@ Open the file for Brian to review and edit:
 ```
 
 After Brian saves and closes:
+
 - Parse title from first line (strip leading `#` if present)
 - Parse description from remaining content
 - If file is empty/whitespace only, abort
-- Delete the temp file after parsing
+- Delete the temp file and the mr-branch-name.md files
 
 ### 5. Create the MR or PR
 
@@ -184,6 +186,7 @@ scripts/glab-mr-helper.sh set-blocking <this-mr-number> <target-branch>
 ```
 
 The helper:
+
 1. Finds the open MR where source branch = our target branch (the parent MR)
 2. Creates a blocking relationship so the parent must merge first
 
