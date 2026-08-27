@@ -13,6 +13,7 @@
         "-extensions/go-to-bed.ts",
         "-extensions/loop.ts",
         "-extensions/multi-edit.ts",
+        "-extensions/split-fork.ts",
         "+extensions/answer.ts"
       ],
       "skills": [
