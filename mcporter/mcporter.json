@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "atlassian": {
+      "baseUrl": "https://mcp.atlassian.com/v1/mcp/authv2"
+    },
+    "coda": {
+      "baseUrl": "https://coda.io/apis/mcp"
+    },
+    "sourcegraph": {
+      "baseUrl": "https://sourcegraph.grammarly.io/.api/mcp"
+    },
+    "sumologic": {
+      "baseUrl": "https://apigw.prod-platform-plane.grammarlyaws.com/sumologic-mcp-server/mcp"
+    },
+    "victoriametrics": {
+      "baseUrl": "https://apigw.prod-platform-plane.grammarlyaws.com/vm-mcp-server/mcp"
+    }
+  }
+}

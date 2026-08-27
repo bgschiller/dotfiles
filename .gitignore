@@ -64,5 +64,8 @@ claude-personal/daemon/
 claude-personal/jobs/
 claude-personal/remote-settings.json
 
+mcporter/credentials.json
+mcporter/daemon/
+
 bin/prq
 bin/syncthing
