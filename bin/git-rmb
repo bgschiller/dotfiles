@@ -23,6 +23,18 @@ conflicted_files() {
   git diff --name-only --diff-filter=U
 }
 
+# A modernize branch drops its Vite config in favour of Rollup. When origin/main
+# has since edited that same config we get a modify/delete conflict; the branch
+# side (deletion) always wins.
+is_vite_config() {
+  case "$(basename "$1")" in
+    vite.config.ts|vite.config.mts|vite-debug.config.ts|vite-debug.config.mts)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 wait_for_index_lock() {
   local lock_path
   lock_path=$(git rev-parse --git-path index.lock)
@@ -47,7 +59,7 @@ abort_for_unexpected_conflicts() {
   local file
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
-    if [[ "$(basename "$file")" != "package.json" && "$file" != "pnpm-lock.yaml" ]]; then
+    if [[ "$(basename "$file")" != "package.json" && "$file" != "pnpm-lock.yaml" ]] && ! is_vite_config "$file"; then
       unexpected+=("$file")
     fi
   done < <(conflicted_files)
@@ -106,6 +118,11 @@ resolve_conflicts_once() {
   local resolved_files=()
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
+    if is_vite_config "$file"; then
+      info "keeping $file deleted (modernize branch drops Vite config)"
+      git rm -f --ignore-unmatch -- "$file" >/dev/null
+      continue
+    fi
     case "$file" in
       pnpm-lock.yaml)
         info "using branch copy of pnpm-lock.yaml as input to pnpm install"

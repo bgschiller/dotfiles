@@ -266,7 +266,8 @@ ${templateContents}
 7. ${context.repoType === "gitlab"
       ? "If this is stacked, create the blocking dependency after MR creation."
       : "If this is stacked, there is no dependency API to call; just create the PR."}
-8. Finish by printing a Slack review request in the form: \`Please review my ${requestNoun} to [title](url)\`.
+8. Delete the local draft file \`mr-${context.currentBranch.replace(/[^a-zA-Z0-9._-]+/g, "-")}.md\` now that the ${requestNoun.toLowerCase()} exists.
+9. Finish by printing a Slack review request in the form: \`Please review my ${requestNoun} to [title](url)\`.
 
 Do not re-run the already precomputed repository-discovery commands unless something looks stale.`;
 }

@@ -117,10 +117,14 @@
       "Read(~/.claude/projects/*/*/tool-results/*)"
     ],
     "deny": [],
-    "ask": ["Bash(curl:*)", "Bash(node -e:*)", "Bash(rm:*)", "Bash(source:*)"],
+    "ask": [
+      "Bash(curl:*)",
+      "Bash(node -e:*)",
+      "Bash(rm:*)",
+      "Bash(source:*)"
+    ],
     "defaultMode": "auto"
   },
-  "model": "sonnet",
   "hooks": {
     "Stop": [
       {
