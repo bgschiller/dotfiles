@@ -229,13 +229,22 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("message_update", (event: MessageUpdateEvent, ctx) => {
-    phase = "streaming";
     const t = event.assistantMessageEvent?.type;
+    // Stream finished: the provider request is complete. Go idle so tool
+    // execution (e.g. a long bash command) isn't misread as a stalled stream.
+    if (t === "done" || t === "error") {
+      endTurn(ctx);
+      return;
+    }
+    phase = "streaming";
     if (t === "thinking_delta" || t === "thinking_start") counts.thinking++;
     else if (t === "text_delta" || t === "text_start") counts.text++;
     else if (t === "toolcall_delta" || t === "toolcall_start") counts.toolcall++;
     markProgress(ctx);
   });
+
+  // Tool execution is not an LLM wait; stop watching until the next request.
+  pi.on("tool_execution_start", (_event, ctx) => endTurn(ctx));
 
   function endTurn(ctx: ExtensionContext | undefined) {
     phase = "idle";
