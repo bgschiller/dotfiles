@@ -6,6 +6,7 @@ import type {
 import { appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { execFile } from "node:child_process";
 
 /**
  * Stall detector: watches the LLM request/response lifecycle and, when no
@@ -31,7 +32,19 @@ const CONFIG = {
   tickSeconds: 1,
   // Append each stall episode (start + resolution) here for pattern analysis.
   logFile: join(homedir(), ".pi", "stall-log.jsonl"),
+  // Command run once per stall to request attention (chime + tmux status).
+  attentionCommand: "claude-attention",
 };
+
+function requestAttention() {
+  try {
+    execFile(CONFIG.attentionCommand, [], () => {
+      // Fire-and-forget; ignore missing binary or errors.
+    });
+  } catch {
+    // Never let attention signaling break the session.
+  }
+}
 
 type Phase = "connecting" | "waiting" | "streaming" | "idle";
 
@@ -182,6 +195,7 @@ export default function (pi: ExtensionAPI) {
           flagged = true;
           flaggedAt = now();
           logEpisode("stall");
+          requestAttention();
         }
         renderWidget(lastCtx);
       }
@@ -224,6 +238,7 @@ export default function (pi: ExtensionAPI) {
       flagged = true;
       flaggedAt = now();
       logEpisode("stall");
+      requestAttention();
       renderWidget(ctx);
     }
   });
