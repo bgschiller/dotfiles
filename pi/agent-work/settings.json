@@ -1,7 +1,7 @@
 {
   "defaultProvider": "anthropic",
   "defaultModel": "claude-opus-4-8",
-  "defaultThinkingLevel": "low",
+  "defaultThinkingLevel": "medium",
   "enableSkillCommands": true,
   "extensions": [
     "../agent/extensions",
@@ -50,5 +50,6 @@
     "anthropic/claude-opus-4-7",
     "anthropic/claude-haiku-4-5"
   ],
-  "lastChangelogVersion": "0.79.0"
+  "lastChangelogVersion": "0.84.4",
+  "theme": "dark"
 }
