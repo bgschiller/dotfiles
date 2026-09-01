@@ -39,6 +39,7 @@
     ~/bin:
     ~/.claude:
     ~/.pi:
+      if: # empty condition = link on all platforms (incl. Windows)
     ~/.agents:
     ~/.claude-personal:
     ~/.vscode/settings.json:

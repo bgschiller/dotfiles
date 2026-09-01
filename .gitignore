@@ -69,6 +69,7 @@ mcporter/daemon/
 
 pi/stall-log.jsonl
 pi/agent-work/models-store.json
+pi/agent/models-store.json
 pi/agent/models.json
 
 bin/prq
