@@ -27,6 +27,7 @@
     pager = delta
     ui = auto
 	symlinks = true
+	longpaths = true
 [pull]
     rebase = true
 [branch]
@@ -71,3 +72,9 @@
 	clean = git-lfs clean -- %f
 [maintenance]
 	repo = /Users/brian/work/web-monorepo/boston
+[credential "https://github.com"]
+	helper = 
+	helper = !'C:\\Program Files\\GitHub CLI\\gh.exe' auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !'C:\\Program Files\\GitHub CLI\\gh.exe' auth git-credential
