@@ -9,7 +9,7 @@ const DOTFILES_ROOT = path.join(HOME, "dotfiles");
 
 const DEFAULTS: Record<Exclude<Scope, "unscoped">, { provider: string; model: string }> = {
   personal: { provider: "deepseek", model: "deepseek-v4-pro" },
-  work: { provider: "openai-codex", model: "gpt-5.5" },
+  work: { provider: "anthropic", model: "claude-sonnet-5" },
 };
 
 const ALLOWED_PROVIDERS: Record<Exclude<Scope, "unscoped">, Set<string>> = {

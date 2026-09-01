@@ -1,6 +1,6 @@
 {
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-4-8",
+  "defaultModel": "claude-sonnet-5",
   "defaultThinkingLevel": "medium",
   "enableSkillCommands": true,
   "extensions": [
@@ -43,11 +43,9 @@
   ],
   "enabledModels": [
     "openai-codex/gpt-5.5",
-    "openai-codex/gpt-5.4",
     "openai-codex/gpt-5.4-mini",
-    "anthropic/claude-sonnet-4-6",
-    "anthropic/claude-opus-4-8",
-    "anthropic/claude-opus-4-7",
+    "anthropic/claude-opus-5",
+    "anthropic/claude-sonnet-5",
     "anthropic/claude-haiku-4-5"
   ],
   "lastChangelogVersion": "0.84.4",
