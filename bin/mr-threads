@@ -26,6 +26,44 @@ die() {
   exit 1
 }
 
+# Clean up raw markdown from bot/tool comments:
+# - collapse <img alt="X" ...> to just X (covers table cells and inline badges alike)
+# - drop the now-empty <a>...</a> wrappers around those images
+# - strip HTML comments entirely (can smuggle hidden instructions to an LLM)
+# - drop the redundant "This is a comment by AI Code Review Agent..." footer
+# - collapse the resulting runs of blank lines
+clean_markdown() {
+  perl -0777 -pe '
+    s/<img[^>]*\balt="([^"]*)"[^>]*>/$1/gi;
+    s/<\/?a[^>]*>//gi;
+    s/<!--.*?-->//gs;
+    s/_This is a comment by AI Code Review Agent.*?\n\n/\n/gs;
+    s/\n{3,}/\n\n/g;
+  '
+}
+
+# Comment bodies (mostly from CI/bot accounts like github-actions) that are pure
+# boilerplate status reports with no discussion value. Each pattern is matched
+# individually (multiline, so ^ anchors to the start of any line in the body)
+# against the section heading it introduces, so a comment that mixes a noisy
+# report with actual human-relevant content isn't silently dropped wholesale.
+readonly MR_THREADS_NOISE_PATTERNS='[
+  "^## Code-owner approval",
+  "^#### Express Lane",
+  "^### .*Changeset detected",
+  "^## .*Storybook Preview",
+  "^### .*Go Home preview",
+  "^### .*Chromatic",
+  "^### .*Go Home e2e",
+  "^## SonarQube Analysis Results",
+  "^### .*Go Home bundle stats",
+  "^### .*Go Home Lighthouse"
+]'
+
+# jq `def` for filtering: given a comment/note body, true if it matches one of
+# the noise patterns above and should be dropped.
+readonly MR_THREADS_IS_NOISE_DEF='def is_noise: . as $b | $noise | any(. as $p | $b | test($p; "m"));'
+
 # Detect platform from git remote URL
 detect_platform() {
   local origin_url
@@ -76,7 +114,9 @@ gitlab_threads() {
   discussions=$(glab api "projects/${project_id}/merge_requests/${mr_number}/discussions?per_page=100" 2>/dev/null) || die "Failed to fetch discussions"
 
   # Process discussions and output markdown
-  echo "$discussions" | jq -r '
+  echo "$discussions" | jq -r --argjson noise "$MR_THREADS_NOISE_PATTERNS" '
+    '"$MR_THREADS_IS_NOISE_DEF"'
+
     # Filter to discussions with unresolved resolvable notes
     [.[] | select(.notes | any(.resolvable == true and .resolved == false))] |
 
@@ -101,8 +141,9 @@ gitlab_threads() {
       end),
       "",
 
-      # Output all notes in the thread (not just unresolved ones, to show full conversation)
-      (.notes[] |
+      # Output all notes in the thread (not just unresolved ones, to show full conversation),
+      # skipping any that are pure bot boilerplate
+      (.notes[] | select(.body | is_noise | not) |
         "**@\(.author.username)** - \(.created_at[0:10])",
         "",
         .body,
@@ -111,7 +152,7 @@ gitlab_threads() {
       "---",
       ""
     )
-  '
+  ' | clean_markdown
 }
 
 # GitHub: Find PR number for current branch
@@ -176,15 +217,21 @@ github_threads() {
     local thread_count
     thread_count=$(echo "$review_threads" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
 
-    # Count general comments (these are always "unresolved" since GitHub doesn't have resolution for them)
+    # Count general comments (these are always "unresolved" since GitHub doesn't have resolution for them),
+    # excluding pure bot boilerplate that we're going to drop anyway
     local comment_count
-    comment_count=$(echo "$pr_comments" | jq '.comments | length')
+    comment_count=$(echo "$pr_comments" | jq --argjson noise "$MR_THREADS_NOISE_PATTERNS" '
+      '"$MR_THREADS_IS_NOISE_DEF"'
+      [.comments[] | select(.body | is_noise | not)] | length
+    ')
 
     echo "## Unresolved Threads ($thread_count)"
     echo ""
 
     # Output review threads
-    echo "$review_threads" | jq -r '
+    echo "$review_threads" | jq -r --argjson noise "$MR_THREADS_NOISE_PATTERNS" '
+      '"$MR_THREADS_IS_NOISE_DEF"'
+
       .data.repository.pullRequest.reviewThreads.nodes[] |
       select(.isResolved == false) |
 
@@ -197,8 +244,8 @@ github_threads() {
       end),
       "",
 
-      # Output all comments in the thread
-      (.comments.nodes[] |
+      # Output all comments in the thread, skipping any that are pure bot boilerplate
+      (.comments.nodes[] | select(.body | is_noise | not) |
         "**@\(.author.login)** - \(.createdAt[0:10])",
         "",
         .body,
@@ -212,8 +259,10 @@ github_threads() {
     if [[ "$comment_count" -gt 0 ]]; then
       echo "### General Discussion"
       echo ""
-      echo "$pr_comments" | jq -r '
-        .comments[] |
+      echo "$pr_comments" | jq -r --argjson noise "$MR_THREADS_NOISE_PATTERNS" '
+        '"$MR_THREADS_IS_NOISE_DEF"'
+
+        .comments[] | select(.body | is_noise | not) |
         "**@\(.author.login)** - \(.createdAt[0:10])",
         "",
         .body,
@@ -222,7 +271,7 @@ github_threads() {
         ""
       '
     fi
-  }
+  } | clean_markdown
 }
 
 main() {

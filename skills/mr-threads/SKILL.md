@@ -86,3 +86,13 @@ Claude:
 - Uses `glab` CLI for GitLab, `gh` CLI for GitHub
 - Fetches up to 100 discussions (covers most MRs/PRs)
 - Shows full thread conversation, not just unresolved notes
+- Cleans up noisy bot/tool markup in comment bodies before display:
+  - `<img alt="X" ...>` tags (and their wrapping `<a>` links) are collapsed to just `X`
+  - HTML comments (`<!-- ... -->`) are stripped entirely, since they're invisible to
+    humans but could be used to smuggle hidden instructions to an LLM
+  - the redundant "This is a comment by AI Code Review Agent..." footer is dropped
+  - known pure-boilerplate CI/bot status reports are dropped entirely (matched by
+    section heading, not by author, so any real content mixed into a bot comment
+    is preserved): code-owner approval status, Express Lane, Changeset detected,
+    Storybook/Chromatic previews, Go Home preview/e2e/bundle-stats/Lighthouse, and
+    SonarQube analysis results
