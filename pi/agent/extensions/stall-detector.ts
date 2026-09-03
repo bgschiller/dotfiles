@@ -3,6 +3,8 @@ import type {
   ExtensionContext,
   MessageUpdateEvent,
 } from "@earendil-works/pi-coding-agent";
+
+type UserMessageContent = Parameters<ExtensionAPI["sendUserMessage"]>[0];
 import { appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -11,8 +13,7 @@ import { execFile } from "node:child_process";
 /**
  * Stall detector: watches the LLM request/response lifecycle and, when no
  * progress has been made for a while, shows a plain-English widget describing
- * exactly which phase we're stuck in and why. Diagnostic-only: it never aborts
- * or retries. You still decide when to hit Esc.
+ * exactly which phase we're stuck in and why.
  *
  * Phases:
  *   A "connecting"  before_provider_request -> after_provider_response
@@ -20,6 +21,19 @@ import { execFile } from "node:child_process";
  *   B "waiting"     after_provider_response -> first message_update
  *                   (server accepted the request but has produced no tokens)
  *   C "streaming"   between message_update events (stream started then stalled)
+ *
+ * Known-cause auto-recovery:
+ *   Log analysis (2026-08-28 through 09-03, 112+ stall episodes) found that
+ *   94% of Anthropic connecting/waiting stalls begin within a few minutes of
+ *   a wall-clock :00 or :30 boundary -- consistent with an account-level
+ *   quota/metering job on a 30-minute cadence, not a real network problem.
+ *   No 429/retry-after is ever returned, so there's nothing to back off on
+ *   except time. For that specific signature (phase connecting/waiting,
+ *   provider anthropic) we no longer page the human: we silently cancel the
+ *   stuck request and resubmit once the boundary window has passed, since
+ *   retrying immediately just re-enters the same throttle window. Other
+ *   stalls (mid-stream, non-Anthropic) still get the old chime + widget and
+ *   are left for the human to handle.
  */
 
 // ---- Tunable thresholds (seconds). Adjust freely. --------------------------
@@ -34,6 +48,17 @@ const CONFIG = {
   logFile: join(homedir(), ".pi", "stall-log.jsonl"),
   // Command run once per stall to request attention (chime + tmux status).
   attentionCommand: "claude-attention",
+
+  // ---- Known-throttle auto-retry ----
+  // Enable silent cancel+resubmit for the diagnosed Anthropic boundary throttle.
+  autoRetryEnabled: true,
+  // Minutes-of-hour that are safely past the :00/:30 throttle window.
+  retryTargetMinutes: [1, 31],
+  // Extra cushion added past the target minute, in seconds.
+  retryBufferSec: 0,
+  // Message sent to resume the agent after the silent cancel+resubmit.
+  retryMessage:
+    "(auto-resumed after a known Anthropic API throttle stall) Please continue exactly where you left off.",
 };
 
 function requestAttention() {
@@ -60,6 +85,24 @@ const PHASE_LABEL: Record<Phase, string> = {
 const WIDGET_KEY = "stall-detector";
 const STATUS_KEY = "stall-detector";
 
+/** Next wall-clock time (ms) matching one of CONFIG.retryTargetMinutes. */
+function nextRetryTarget(fromMs: number): number {
+  const minutes = [...CONFIG.retryTargetMinutes].sort((a, b) => a - b);
+  // Check this hour and next hour's candidates in order; take the first one
+  // strictly in the future. (Two hours is enough margin for any sane buffer.)
+  for (let hourOffset = 0; hourOffset <= 1; hourOffset++) {
+    for (const m of minutes) {
+      const candidate = new Date(fromMs);
+      candidate.setHours(candidate.getHours() + hourOffset, m, CONFIG.retryBufferSec, 0);
+      if (candidate.getTime() > fromMs) return candidate.getTime();
+    }
+  }
+  // Unreachable in practice (would need retryBufferSec >= 3600s).
+  const fallback = new Date(fromMs);
+  fallback.setHours(fallback.getHours() + 2, minutes[0], CONFIG.retryBufferSec, 0);
+  return fallback.getTime();
+}
+
 export default function (pi: ExtensionAPI) {
   // Per-request lifecycle state.
   let phase: Phase = "idle";
@@ -76,10 +119,22 @@ export default function (pi: ExtensionAPI) {
   let timer: ReturnType<typeof setInterval> | undefined;
   let lastCtx: ExtensionContext | undefined;
 
+  // Auto-retry state for the known Anthropic boundary throttle.
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let retryTargetMs: number | null = null;
+  let abortedByUs = false; // true while our own scheduled abort is in flight
+  // If the last committed entry was a plain user message (nothing produced
+  // yet for this turn -- no tool call, no thinking/text), resend that exact
+  // message instead of a generic "please continue", since there's nothing to
+  // continue from. Captured right before abort, since that's the last point
+  // the transcript reflects only prior turns.
+  let resumeContent: UserMessageContent | null = null;
+
   const now = () => Date.now();
   const secs = (fromMs: number) => Math.floor((now() - fromMs) / 1000);
   const fmt = (s: number) =>
-    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    `${Math.floor(s / 60)}:${String(Math.max(s, 0) % 60).padStart(2, "0")}`;
+  const clockOf = (ms: number) => new Date(ms).toLocaleTimeString([], { hour12: false });
 
   function thresholdFor(p: Phase): number {
     if (p === "connecting") return CONFIG.thresholdConnecting;
@@ -88,7 +143,22 @@ export default function (pi: ExtensionAPI) {
     return Number.POSITIVE_INFINITY;
   }
 
-  function logEpisode(kind: "stall" | "resolved") {
+  function modelName(): string {
+    const m = lastCtx?.model as { provider?: string; id?: string } | undefined;
+    if (!m) return "unknown model";
+    return `${m.provider ?? "?"}/${m.id ?? "?"}`;
+  }
+
+  function isAnthropic(): boolean {
+    return modelName().startsWith("anthropic/");
+  }
+
+  /** Is this stall the diagnosed known-cause pattern we auto-recover from? */
+  function isKnownThrottle(): boolean {
+    return CONFIG.autoRetryEnabled && isAnthropic() && (phase === "connecting" || phase === "waiting");
+  }
+
+  function logEpisode(kind: "stall" | "resolved" | "auto-retry-scheduled" | "auto-retry-fired", extra?: Record<string, unknown>) {
     try {
       const record = {
         ts: new Date().toISOString(),
@@ -101,6 +171,7 @@ export default function (pi: ExtensionAPI) {
         retryAfter: headers["retry-after"] ?? null,
         uploadTokens,
         streamCounts: { ...counts },
+        ...extra,
       };
       appendFileSync(CONFIG.logFile, JSON.stringify(record) + "\n");
     } catch {
@@ -108,18 +179,61 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  function modelName(): string {
-    const m = lastCtx?.model as { provider?: string; id?: string } | undefined;
-    if (!m) return "unknown model";
-    return `${m.provider ?? "?"}/${m.id ?? "?"}`;
+  // ---- Known-throttle auto-retry scheduling --------------------------------
+
+  function cancelRetry() {
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+    }
+    retryTargetMs = null;
   }
+
+  function scheduleRetry(ctx: ExtensionContext) {
+    if (retryTimer) return; // already scheduled for this episode
+    retryTargetMs = nextRetryTarget(now());
+    const delay = Math.max(0, retryTargetMs - now());
+    logEpisode("auto-retry-scheduled", { retryTargetMs, retryTargetClock: clockOf(retryTargetMs) });
+    retryTimer = setTimeout(() => performRetry(ctx), delay);
+    (retryTimer as unknown as { unref?: () => void }).unref?.();
+  }
+
+  function performRetry(ctx: ExtensionContext) {
+    retryTimer = undefined;
+    resumeContent = null;
+    try {
+      const leaf = ctx.sessionManager?.getLeafEntry?.();
+      if (leaf?.type === "message" && leaf.message?.role === "user") {
+        resumeContent = leaf.message.content as UserMessageContent;
+      }
+    } catch {
+      resumeContent = null;
+    }
+    logEpisode("auto-retry-fired", { resumeMode: resumeContent !== null ? "reprompt" : "continue" });
+    abortedByUs = true;
+    try {
+      ctx.abort();
+    } catch {
+      abortedByUs = false;
+    }
+  }
+
+  // ---- Widget rendering -----------------------------------------------------
 
   function renderWidget(ctx: ExtensionContext) {
     const sinceProgress = secs(lastProgress);
     const lines: string[] = [];
+    const throttle = isKnownThrottle();
 
-    lines.push(`\u26A0 LLM appears stalled \u2014 no progress for ${fmt(sinceProgress)}`);
-    lines.push(`What: ${PHASE_LABEL[phase]}`);
+    if (throttle) {
+      lines.push(`\u23F3 Known Anthropic throttle \u2014 no progress for ${fmt(sinceProgress)}`);
+      lines.push(
+        `What: ${PHASE_LABEL[phase]}. This matches the recurring :00/:30 boundary stall (see stall-log.jsonl analysis) \u2014 not a real error, nothing to act on.`,
+      );
+    } else {
+      lines.push(`\u26A0 LLM appears stalled \u2014 no progress for ${fmt(sinceProgress)}`);
+      lines.push(`What: ${PHASE_LABEL[phase]}`);
+    }
     lines.push(`Model: ${modelName()}`);
 
     // Timeline
@@ -162,10 +276,22 @@ export default function (pi: ExtensionAPI) {
       lines.push(`Context uploaded: ~${uploadTokens.toLocaleString()} tokens`);
     }
 
-    lines.push(`Hint: Esc to cancel, then "please continue". Log: ${CONFIG.logFile}`);
+    if (throttle && retryTargetMs !== null) {
+      const remaining = Math.max(0, Math.round((retryTargetMs - now()) / 1000));
+      lines.push(
+        `Auto-retry: will silently cancel and resubmit at ${clockOf(retryTargetMs)} (in ${fmt(remaining)}). No action needed.`,
+      );
+    } else {
+      lines.push(`Hint: Esc to cancel, then "please continue". Log: ${CONFIG.logFile}`);
+    }
 
     ctx.ui.setWidget(WIDGET_KEY, lines);
-    ctx.ui.setStatus(STATUS_KEY, `\u26A0 LLM stalled ${fmt(sinceProgress)} \u2014 see widget`);
+    const statusPrefix = throttle ? "\u23F3 Anthropic throttle" : "\u26A0 LLM stalled";
+    const statusSuffix =
+      throttle && retryTargetMs !== null
+        ? ` \u2014 retry ${clockOf(retryTargetMs)}`
+        : ` ${fmt(sinceProgress)} \u2014 see widget`;
+    ctx.ui.setStatus(STATUS_KEY, `${statusPrefix}${statusSuffix}`);
   }
 
   function clearWidget(ctx: ExtensionContext | undefined) {
@@ -195,7 +321,11 @@ export default function (pi: ExtensionAPI) {
           flagged = true;
           flaggedAt = now();
           logEpisode("stall");
-          requestAttention();
+          if (isKnownThrottle()) {
+            scheduleRetry(lastCtx);
+          } else {
+            requestAttention();
+          }
         }
         renderWidget(lastCtx);
       }
@@ -206,6 +336,7 @@ export default function (pi: ExtensionAPI) {
 
   function markProgress(ctx: ExtensionContext) {
     lastProgress = now();
+    cancelRetry(); // stall resolved on its own; no need to auto-retry anymore
     if (flagged) clearWidget(ctx); // resumed after a warning
   }
 
@@ -223,6 +354,7 @@ export default function (pi: ExtensionAPI) {
     counts.toolcall = 0;
     const usage = ctx.getContextUsage?.();
     uploadTokens = usage?.tokens ?? null;
+    cancelRetry();
     if (flagged) clearWidget(ctx);
     startTimer(ctx);
   });
@@ -264,6 +396,23 @@ export default function (pi: ExtensionAPI) {
   function endTurn(ctx: ExtensionContext | undefined) {
     phase = "idle";
     clearWidget(ctx);
+    cancelRetry();
+    if (abortedByUs) {
+      abortedByUs = false;
+      const content = resumeContent;
+      resumeContent = null;
+      if (ctx) {
+        try {
+          // We can't be sure the agent has fully settled to idle right
+          // after our own abort (agent_end can fire slightly before that),
+          // so always specify deliverAs to avoid the "Agent is already
+          // processing" error and let it queue if needed.
+          pi.sendUserMessage(content ?? CONFIG.retryMessage, { deliverAs: "followUp" });
+        } catch {
+          // Never let the resubmit break the session; user can retry manually.
+        }
+      }
+    }
   }
 
   pi.on("turn_end", (_event, ctx) => endTurn(ctx));
@@ -272,6 +421,7 @@ export default function (pi: ExtensionAPI) {
     stopTimer();
   });
   pi.on("session_shutdown", (_event, ctx) => {
+    cancelRetry();
     stopTimer();
     clearWidget(ctx);
   });
