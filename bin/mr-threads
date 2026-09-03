@@ -37,7 +37,7 @@ clean_markdown() {
     s/<img[^>]*\balt="([^"]*)"[^>]*>/$1/gi;
     s/<\/?a[^>]*>//gi;
     s/<!--.*?-->//gs;
-    s/_This is a comment by AI Code Review Agent.*?\n\n/\n/gs;
+    s/[_*]This is a comment by AI Code Review Agent.*?\n\n/\n/gs;
     s/\n{3,}/\n\n/g;
   '
 }
