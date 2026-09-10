@@ -158,7 +158,38 @@ resolve_conflicts_once() {
   fi
 }
 
+usage() {
+  cat <<'EOF'
+usage: git rmb [--no-push]
+
+Rebase a modernize branch onto origin/main, resolving the common
+package.json version-bump conflict, then push with --force-with-lease.
+
+options:
+  --no-push   Skip pushing after a successful rebase.
+EOF
+}
+
 main() {
+  local push=1
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --no-push)
+        push=0
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        err "unknown argument: $arg"
+        usage >&2
+        exit 1
+        ;;
+    esac
+  done
+
   git rev-parse --show-toplevel >/dev/null
 
   local original_head=""
@@ -174,8 +205,12 @@ main() {
         info "branch was already up to date; nothing to push"
         exit 0
       fi
-      info "pushing with --force-with-lease"
-      git push --force-with-lease
+      if (( push )); then
+        info "pushing with --force-with-lease"
+        git push --force-with-lease
+      else
+        info "skipping push (--no-push)"
+      fi
       exit 0
     fi
   fi
@@ -193,8 +228,12 @@ main() {
     info "branch was already up to date; nothing to push"
     exit 0
   fi
-  info "pushing with --force-with-lease"
-  git push --force-with-lease
+  if (( push )); then
+    info "pushing with --force-with-lease"
+    git push --force-with-lease
+  else
+    info "skipping push (--no-push)"
+  fi
 }
 
 main "$@"
