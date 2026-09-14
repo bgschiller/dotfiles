@@ -38,7 +38,7 @@
     "anthropic/claude-sonnet-5",
     "anthropic/claude-haiku-4-5"
   ],
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.85.1",
   "theme": "dark",
   "warnings": {
     "anthropicExtraUsage": false

@@ -167,8 +167,10 @@
     }
   },
   "alwaysThinkingEnabled": false,
+  "effortLevel": "medium",
   "awaySummaryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "model": "sonnet"
 }
