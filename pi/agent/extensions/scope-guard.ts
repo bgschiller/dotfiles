@@ -87,6 +87,16 @@ interface BroadSearchMatch {
 	path: string;
 }
 
+// Maximum -maxdepth value we'll accept as "sufficiently bounded" for a given
+// broad root. The true filesystem root ("/") fans out into many top-level
+// dirs (Users, System, Library, Applications, opt, private, Volumes, ...),
+// so even a modest depth like 6 still amounts to a near-full-disk scan.
+// Single-segment roots (e.g. "/Users", "/home") are narrower, so a larger
+// depth is tolerable there.
+function maxAllowedDepth(pathToken: string): number {
+	return pathToken === "/" ? 2 : 4;
+}
+
 function findBroadFindCommand(sub: string): BroadSearchMatch | null {
 	const match = sub.match(/(?:^|\s)find\s+(.+)/);
 	if (!match) return null;
@@ -99,9 +109,12 @@ function findBroadFindCommand(sub: string): BroadSearchMatch | null {
 
 	if (!isBroadPath(pathToken)) return null;
 
-	// If the command already scopes itself with -maxdepth, allow it through -
-	// the user has explicitly bounded the traversal.
-	if (/-maxdepth\s+\d+/.test(rest)) return null;
+	// If the command already scopes itself with a sufficiently small
+	// -maxdepth, allow it through - the user has explicitly bounded the
+	// traversal. A large maxdepth (or one applied to the true root "/") is
+	// still effectively a full-filesystem scan, so it stays blocked.
+	const maxdepthMatch = rest.match(/-maxdepth\s+(\d+)/);
+	if (maxdepthMatch && Number(maxdepthMatch[1]) <= maxAllowedDepth(pathToken)) return null;
 
 	return { tool: "find", path: pathToken };
 }
