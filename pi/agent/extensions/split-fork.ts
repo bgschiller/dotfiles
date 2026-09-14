@@ -84,8 +84,8 @@ export default function (pi: ExtensionAPI): void {
 			const piCommand = buildPiCommand(forkedSessionFile, prompt);
 
 			// tmux spawns panes from the tmux *server* environment, not this pi
-			// process's env, so PI_CODING_AGENT_DIR / PI_MODEL_SCOPE (which select the
-			// agent dir + auth) would be lost. Re-export the PI_* vars explicitly.
+			// process's env, so PI_CODING_AGENT_DIR (which selects the agent dir +
+			// auth) would be lost. Re-export the PI_* vars explicitly.
 			const envExports = Object.entries(process.env)
 				.filter(([key, value]) => key.startsWith("PI_") && value !== undefined)
 				.map(([key, value]) => `export ${key}=${shellQuote(value as string)}`)

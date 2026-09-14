@@ -1,8 +1,7 @@
 {
-  "lastChangelogVersion": "0.84.4",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
-  "defaultThinkingLevel": "high",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-sonnet-5",
+  "defaultThinkingLevel": "medium",
   "enableSkillCommands": true,
   "packages": [
     {
@@ -14,7 +13,6 @@
         "-extensions/go-to-bed.ts",
         "-extensions/loop.ts",
         "-extensions/multi-edit.ts",
-        "-extensions/split-fork.ts",
         "+extensions/answer.ts"
       ],
       "skills": [
@@ -32,18 +30,17 @@
         "-themes/nightowl.json"
       ]
     },
-    "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0"
+    "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0",
+    "npm:pi-claude-oauth-adapter"
   ],
   "enabledModels": [
-    "deepseek/deepseek-v4-flash",
-    "deepseek/deepseek-v4-pro",
-    "openai-codex/gpt-5.5",
-    "openai-codex/gpt-5.4",
-    "openai-codex/gpt-5.4-mini",
-    "anthropic/claude-sonnet-4-6",
-    "anthropic/claude-opus-4-8",
-    "anthropic/claude-opus-4-7",
+    "anthropic/claude-opus-5",
+    "anthropic/claude-sonnet-5",
     "anthropic/claude-haiku-4-5"
   ],
-  "theme": "dark"
+  "lastChangelogVersion": "0.84.4",
+  "theme": "dark",
+  "warnings": {
+    "anthropicExtraUsage": false
+  }
 }
