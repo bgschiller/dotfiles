@@ -1,6 +1,6 @@
 {
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-5",
+  "defaultProvider": "cursor",
+  "defaultModel": "auto",
   "defaultThinkingLevel": "medium",
   "enableSkillCommands": true,
   "packages": [
@@ -31,12 +31,14 @@
       ]
     },
     "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0",
-    "npm:pi-claude-oauth-adapter"
+    "npm:pi-claude-oauth-adapter",
+    "npm:pi-cursor-sdk"
   ],
   "enabledModels": [
     "anthropic/claude-opus-5",
     "anthropic/claude-sonnet-5",
-    "anthropic/claude-haiku-4-5"
+    "anthropic/claude-haiku-4-5",
+    "cursor/auto"
   ],
   "lastChangelogVersion": "0.85.1",
   "theme": "dark",

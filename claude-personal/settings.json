@@ -125,6 +125,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "haiku",
   "hooks": {
     "Stop": [
       {
@@ -159,6 +160,6 @@
     "review@superhuman-aidev": true
   },
   "awaySummaryEnabled": false,
-  "skipAutoPermissionPrompt": true,
-  "model": "sonnet"
+  "tui": "fullscreen",
+  "skipAutoPermissionPrompt": true
 }
