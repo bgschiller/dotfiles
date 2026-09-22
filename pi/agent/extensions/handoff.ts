@@ -10,7 +10,8 @@
  *   /handoff focus on the API bug  — extra instructions appended to the handoff ask
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const HANDOFF_PROMPT = `You're about to be handed off to a fresh agent with no memory of this
 conversation. Wrap up any work that's safe to conclude now, then write a
@@ -25,12 +26,18 @@ relevant:
 - Any gotchas, dead ends, or things that didn't work
 - Relevant file paths, commands, URLs, or other pointers
 
+If the details are extensive, feel free to save the fuller notes to a
+scratch file (e.g. HANDOFF.md) and reference its path, but your reply here
+still needs to stand on its own as the next agent's first instruction.
+
 Do not perform any new work beyond what's needed to reach a clean stopping
 point. Reply with ONLY the handoff message itself — no preamble like "Here's
 the handoff" and no sign-off — since it will be sent verbatim to the next
 agent as its first instruction.`;
 
-function extractText(content: { type: string; text?: string }[]): string {
+type TextLikeContent = { type: string; text?: string };
+
+function extractText(content: TextLikeContent[]): string {
 	return content
 		.filter((part): part is { type: "text"; text: string } => part.type === "text" && typeof part.text === "string")
 		.map((part) => part.text)
@@ -38,12 +45,12 @@ function extractText(content: { type: string; text?: string }[]): string {
 		.trim();
 }
 
-function getLastAssistantText(ctx: ExtensionCommandContext): string | undefined {
-	const branch = ctx.sessionManager.getBranch();
-	for (let i = branch.length - 1; i >= 0; i--) {
-		const entry = branch[i];
-		if (entry.type === "message" && entry.message.role === "assistant") {
-			const text = extractText(entry.message.content as { type: string; text?: string }[]);
+/** Find the last assistant message's text within a set of messages from a single agent run. */
+function getLastAssistantText(messages: AgentMessage[]): string | undefined {
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const message = messages[i] as { role?: string; content?: unknown };
+		if (message.role === "assistant" && Array.isArray(message.content)) {
+			const text = extractText(message.content as TextLikeContent[]);
 			if (text) return text;
 		}
 	}
@@ -51,6 +58,22 @@ function getLastAssistantText(ctx: ExtensionCommandContext): string | undefined 
 }
 
 export default function (pi: ExtensionAPI): void {
+	// Armed while a /handoff command is waiting on the agent's reply to the
+	// handoff-request prompt it just sent. We capture the text straight from
+	// the agent_end event payload rather than reading it back out of the
+	// session afterwards, since ctx.waitForIdle() can resolve immediately if
+	// called before the triggered run has actually started (activeRun isn't
+	// set yet), which would otherwise hand us the *previous* assistant
+	// message instead of the fresh handoff reply.
+	let pendingHandoff: ((text: string | undefined) => void) | undefined;
+
+	pi.on("agent_end", (event) => {
+		if (!pendingHandoff) return;
+		const resolve = pendingHandoff;
+		pendingHandoff = undefined;
+		resolve(getLastAssistantText(event.messages));
+	});
+
 	pi.registerCommand("handoff", {
 		description: "Wrap up, write a handoff message, then start a fresh session with that message. Usage: /handoff [extra instructions]",
 		handler: async (args, ctx) => {
@@ -63,10 +86,13 @@ export default function (pi: ExtensionAPI): void {
 			const prompt = extra ? `${HANDOFF_PROMPT}\n\nAdditional instructions: ${extra}` : HANDOFF_PROMPT;
 
 			ctx.ui.notify("Asking the agent to wrap up and write a handoff message...", "info");
-			pi.sendUserMessage(prompt);
-			await ctx.waitForIdle();
 
-			const handoffMessage = getLastAssistantText(ctx);
+			const handoffPromise = new Promise<string | undefined>((resolve) => {
+				pendingHandoff = resolve;
+			});
+			pi.sendUserMessage(prompt);
+			const handoffMessage = await handoffPromise;
+
 			if (!handoffMessage) {
 				ctx.ui.notify("/handoff: didn't get a handoff message back, aborting before clearing context.", "error");
 				return;
