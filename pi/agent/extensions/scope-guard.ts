@@ -145,13 +145,81 @@ function findBroadSearch(rest: string): BroadSearchMatch | null {
 	return findBroadFindCommand(rest) ?? findBroadGrepCommand(rest);
 }
 
+interface GrepFilteredFindMatch {
+	findPart: string;
+	excluded: string;
+}
+
+// Split a full command into pipeline stages on a single `|` (not `||`,
+// which is a shell OR, not a pipe). This intentionally differs from
+// splitSubcommands (which treats every `|` as a separator) because we need
+// to correlate a `find` stage with the very next stage it feeds into.
+function splitPipeline(command: string): string[] {
+	return command.split(/(?<!\|)\|(?!\|)/).map((s) => s.trim());
+}
+
+// Detect the anti-pattern `find ... | grep -v <term>` (or egrep/fgrep),
+// where a directory-pruning filter is bolted on *after* find instead of
+// telling find to prune that branch itself. Piping through `grep -v` still
+// makes find recurse into every excluded directory (e.g. node_modules)
+// before the results get thrown away, which is wasteful on large trees.
+function findGrepFilteredFind(command: string): GrepFilteredFindMatch | null {
+	const stages = splitPipeline(command);
+
+	for (let i = 0; i < stages.length - 1; i++) {
+		const stage = stages[i];
+		if (!/(?:^|\s)find\s/.test(stage)) continue;
+
+		const next = stages[i + 1];
+		const grepMatch = next.match(/^(?:grep|egrep|fgrep)\s+(.+)$/s);
+		if (!grepMatch) continue;
+
+		const tokens = grepMatch[1].split(/\s+/).filter(Boolean);
+		const hasInvert = tokens.some(
+			(t) => t === "--invert-match" || (t.startsWith("-") && !t.startsWith("--") && /v/.test(t.slice(1))),
+		);
+		if (!hasInvert) continue;
+
+		// The excluded term is typically the last non-flag token.
+		let excluded: string | null = null;
+		for (let j = tokens.length - 1; j >= 0; j--) {
+			const t = tokens[j];
+			if (t.startsWith("-")) continue;
+			excluded = t;
+			break;
+		}
+		if (!excluded) continue;
+
+		excluded = excluded.replace(/^['"]|['"]$/g, "");
+		return { findPart: stage, excluded };
+	}
+
+	return null;
+}
+
 type DetectResult =
 	| { kind: "blocked"; match: BroadSearchMatch }
 	| { kind: "override-accepted"; match: BroadSearchMatch; reason: string }
 	| { kind: "override-rejected"; match: BroadSearchMatch; reason: string }
+	| { kind: "grep-filtered-find-blocked"; match: GrepFilteredFindMatch }
 	| { kind: "clear" };
 
 function detectBroadSearch(command: string): DetectResult {
+	// Check the whole command (pre-subcommand-split, since a pipe boundary is
+	// significant here) for the `find | grep -v ...` anti-pattern first. An
+	// override prefixed to the whole pipeline still applies.
+	const { reason: pipelineReason, rest: pipelineRest } = stripOverride(command);
+	const grepFilteredFind = findGrepFilteredFind(pipelineReason === null ? command : pipelineRest);
+	if (grepFilteredFind) {
+		if (pipelineReason === null || pipelineReason.length < MIN_REASON_LENGTH) {
+			return { kind: "grep-filtered-find-blocked", match: grepFilteredFind };
+		}
+		// A substantive override was given; fall through to normal handling below
+		// (via the per-subcommand loop) so the command still gets the standard
+		// override-accepted treatment/stripping for any broad-path checks, and
+		// otherwise just runs as-is.
+	}
+
 	for (const sub of splitSubcommands(command)) {
 		const { reason, rest } = stripOverride(sub);
 		const match = findBroadSearch(rest);
@@ -219,6 +287,19 @@ export default function (pi: ExtensionAPI) {
 						`If this broad scan is genuinely necessary, prefix the command with ` +
 						`${OVERRIDE_VAR}="<substantive reason>" to override, e.g. ` +
 						`${OVERRIDE_VAR}="user's file could be anywhere under /, no candidate dir known" ${result.match.tool} ${result.match.path} ...`,
+				};
+
+			case "grep-filtered-find-blocked":
+				return {
+					block: true,
+					reason:
+						`Refusing to run "find ... | grep -v ${result.match.excluded}". ` +
+						`Piping find's output through "grep -v" only filters results after the fact - find still recurses into ` +
+						`every "${result.match.excluded}" directory it encounters (e.g. node_modules), which is wasteful on large trees. ` +
+						`Tell find to prune that directory itself instead so it skips those branches entirely, e.g.: ` +
+						`find . -path '*/${result.match.excluded}' -prune -o \\( <your -name/-iname tests> \\) -print. ` +
+						`If you must filter post-hoc, prefix the command with ${OVERRIDE_VAR}="<substantive reason>" to override, e.g. ` +
+						`${OVERRIDE_VAR}="one-off exploratory scan, tree is small" ${result.match.findPart} | grep -v ${result.match.excluded}`,
 				};
 		}
 	});
