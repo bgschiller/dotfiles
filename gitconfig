@@ -24,7 +24,7 @@
     prune = true
 [core]
     excludesfile = ~/.gitignore_global
-    pager = delta
+    pager = git-smart-pager
     ui = auto
 	symlinks = true
 	longpaths = true
@@ -41,7 +41,7 @@
 [merge]
     conflictStyle = zdiff3
 [interactive]
-    diffFilter = delta --color-only
+    diffFilter = git-smart-pager --color-only
 
 [delta]
     navigate = true    # use n and N to move between diff sections
@@ -53,7 +53,7 @@
     mnemonicPrefix = true
     renames = true
     tool = difftastic
-    external = difft
+    external = git-smart-difftool
 [difftool]
     prompt = false
 
@@ -74,7 +74,7 @@
 	repo = /Users/brian/work/web-monorepo/boston
 [credential "https://github.com"]
 	helper = 
-	helper = !'C:\\Program Files\\GitHub CLI\\gh.exe' auth git-credential
+	helper = !/opt/homebrew/bin/gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = 
-	helper = !'C:\\Program Files\\GitHub CLI\\gh.exe' auth git-credential
+	helper = !/opt/homebrew/bin/gh auth git-credential

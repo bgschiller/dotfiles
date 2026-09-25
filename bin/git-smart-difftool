@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Wrapper for git's diff.external hook. Replaces a hardcoded `difft` call.
+#
+# Unlike core.pager, git invokes diff.external unconditionally - even when
+# stdout is redirected to a file (e.g. `git diff > x.patch`) - and
+# difftastic's output is never a valid unified diff. That combination
+# quietly corrupts patches produced by agents/scripts. See git-diff-mode
+# for the full decision logic.
+#
+# Configure in gitconfig:
+#   [diff]
+#       external = git-smart-difftool
+#
+# git calls external diff drivers with:
+#   path old-file old-hex old-mode new-file new-hex new-mode
+set -euo pipefail
+
+self_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+path=${1:?} old_file=${2:?} old_hex=${3:?} old_mode=${4:?} new_file=${5:?} new_hex=${6:?} new_mode=${7:?}
+
+if "$self_dir/git-diff-mode" want-fancy difft; then
+  exec difft "$old_file" "$new_file"
+fi
+
+# Plain fallback: emit a standard "diff --git" unified diff so the overall
+# `git diff` output stays a valid, applicable patch.
+echo "diff --git a/$path b/$path"
+# git uses a literal "." for old-hex/old-mode or new-hex/new-mode when a
+# file doesn't exist on that side (added/deleted). Note this is distinct
+# from a hash of all zeros, which just means "unhashed working tree
+# contents" for a modified file and does NOT mean added/deleted.
+# `git apply` expects the label on the missing side to literally be
+# /dev/null.
+old_label="a/$path"
+new_label="b/$path"
+if [[ "$old_mode" == "." ]]; then
+  echo "new file mode $new_mode"
+  old_label=/dev/null
+  old_hex=0000000
+elif [[ "$new_mode" == "." ]]; then
+  echo "deleted file mode $old_mode"
+  new_label=/dev/null
+  new_hex=0000000
+  new_mode=""
+fi
+echo "index ${old_hex:0:7}..${new_hex:0:7}${new_mode:+ $new_mode}"
+diff -u --label "$old_label" --label "$new_label" "$old_file" "$new_file" || true

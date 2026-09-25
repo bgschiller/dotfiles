@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Wrapper for git's core.pager / interactive.diffFilter. Replaces a
+# hardcoded `delta` call. Falls back to `cat` (no reformatting, no
+# pagination) when running under an AI agent, stdout isn't a real tty, or
+# delta isn't installed. See git-diff-mode for the decision logic.
+#
+# Configure in gitconfig:
+#   [core]
+#       pager = git-smart-pager
+#   [interactive]
+#       diffFilter = git-smart-pager --color-only
+set -euo pipefail
+
+self_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+if "$self_dir/git-diff-mode" want-fancy delta; then
+  exec delta "$@"
+fi
+
+# Plain fallback. Ignore any delta-specific flags (e.g. --color-only) -
+# cat with no args just passes stdin through untouched.
+exec cat

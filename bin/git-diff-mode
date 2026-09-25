@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# git-diff-mode - decide whether to use "fancy" diff tooling (delta,
+# difftastic) or plain output, and explain why.
+#
+# Fancy tools like difftastic and delta are great for humans in a real
+# terminal, but they cause problems for LLM coding agents:
+#   - difftastic's diff.external hook fires unconditionally (git does NOT
+#     gate diff.external on isatty the way it gates core.pager), and its
+#     default display is side-by-side - never a valid unified diff, so
+#     `git diff > x.patch` produces garbage.
+#   - agents commonly run shell commands inside a pty, so `[ -t 1 ]` can
+#     report "yes, a terminal" even though no human is reading the output
+#     and pagers like `less` can hang waiting for input that never comes.
+#
+# This script centralizes the "should we go fancy?" decision so it can be
+# reused from git's diff.external and core.pager hooks (see
+# git-smart-difftool and git-smart-pager in this same directory).
+#
+# Usage:
+#   git-diff-mode                 # human-readable report of all checks
+#   git-diff-mode report          # same as above
+#   git-diff-mode want-fancy TOOL # exit 0 if TOOL should be used fancy,
+#                                  # exit 1 otherwise (silent, for scripts)
+#
+# Override (useful for testing, or to force a mode from your shell/CI):
+#   GIT_DIFF_MODE=fancy git diff
+#   GIT_DIFF_MODE=plain git diff
+#   export GIT_DIFF_MODE=plain    # e.g. in an agent's startup profile
+
+set -uo pipefail
+
+# --- individual checks -------------------------------------------------
+
+check_override() {
+  case "${GIT_DIFF_MODE:-}" in
+  fancy | plain) echo "$GIT_DIFF_MODE" ;;
+  "") echo "" ;;
+  *) echo "" ;;
+  esac
+}
+
+check_is_tty() {
+  [[ -t 1 ]]
+}
+
+# Environment variables set by known coding-agent / AI harnesses.
+_known_agent_vars=(
+  PI_CODING_AGENT
+  AI_AGENT
+  CLAUDECODE
+  CLAUDE_CODE_ENTRYPOINT
+  CURSOR_AGENT
+  CURSOR_TRACE_ID
+  CODEX_SANDBOX
+  GEMINI_CLI
+  AIDER_CHAT
+  OPENCODE_SESSION
+  AMP_SESSION
+  GOOSE_SESSION
+  WINDSURF_SESSION
+  CLINE_SESSION
+  CONTINUE_SESSION
+)
+
+check_known_agent_var() {
+  local v
+  for v in "${_known_agent_vars[@]}"; do
+    if [[ -n "${!v:-}" ]]; then
+      echo "$v"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Heuristic catch-all: any env var whose *name* mentions a known agent /
+# harness keyword, in case a new tool sets its own custom variable we
+# don't know about by name yet.
+check_heuristic_agent_var() {
+  env | grep -Eiom1 '^(CLAUDE|CURSOR|CODEX|COPILOT|AIDER|OPENCODE|GOOSE|WINDSURF|CLINE|MITSUPI|AGENT_HARNESS|LLM_AGENT)[A-Z_]*=' | sed 's/=.*//'
+}
+
+check_dumb_term() {
+  [[ "${TERM:-}" == "dumb" || -z "${TERM:-}" ]]
+}
+
+check_ci() {
+  [[ -n "${CI:-}" ]]
+}
+
+is_agent() {
+  check_known_agent_var >/dev/null && return 0
+  [[ -n "$(check_heuristic_agent_var)" ]] && return 0
+  check_dumb_term && return 0
+  check_ci && return 0
+  return 1
+}
+
+tool_installed() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# --- decision ------------------------------------------------------------
+
+want_fancy() {
+  local tool=$1
+  local override
+  override=$(check_override)
+  case "$override" in
+  fancy)
+    tool_installed "$tool"
+    return
+    ;;
+  plain)
+    return 1
+    ;;
+  esac
+
+  if is_agent; then return 1; fi
+  if ! check_is_tty; then return 1; fi
+  if ! tool_installed "$tool"; then return 1; fi
+  return 0
+}
+
+# --- CLI -----------------------------------------------------------------
+
+report() {
+  local override
+  override=$(check_override)
+
+  echo "git-diff-mode report"
+  echo "====================="
+  echo
+  printf '%-28s %s\n' "GIT_DIFF_MODE override:" "${override:-<none>}"
+  printf '%-28s %s\n' "stdout is a tty:" "$(check_is_tty && echo yes || echo no)"
+
+  local known_hit heuristic_hit
+  known_hit=$(check_known_agent_var || true)
+  heuristic_hit=$(check_heuristic_agent_var || true)
+  printf '%-28s %s\n' "known agent env var:" "${known_hit:-<none>}"
+  printf '%-28s %s\n' "heuristic agent env var:" "${heuristic_hit:-<none>}"
+  printf '%-28s %s\n' "TERM is dumb/unset:" "$(check_dumb_term && echo yes || echo no) (TERM=${TERM:-<unset>})"
+  printf '%-28s %s\n' "CI env var set:" "$(check_ci && echo yes || echo no)"
+  printf '%-28s %s\n' "=> looks like an agent:" "$(is_agent && echo yes || echo no)"
+  echo
+  for tool in difft delta; do
+    printf '%-28s %s\n' "$tool installed:" "$(tool_installed "$tool" && echo yes || echo no)"
+    printf '%-28s %s\n' "=> use $tool fancy:" "$(want_fancy "$tool" && echo yes || echo no)"
+  done
+}
+
+main() {
+  case "${1:-report}" in
+  report)
+    report
+    ;;
+  want-fancy)
+    want_fancy "${2:?usage: git-diff-mode want-fancy TOOL}"
+    ;;
+  *)
+    echo "usage: git-diff-mode [report | want-fancy TOOL]" >&2
+    exit 2
+    ;;
+  esac
+}
+
+# Allow this file to be sourced (for its functions) without running main.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
