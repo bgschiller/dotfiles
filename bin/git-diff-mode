@@ -75,9 +75,17 @@ check_known_agent_var() {
 
 # Heuristic catch-all: any env var whose *name* mentions a known agent /
 # harness keyword, in case a new tool sets its own custom variable we
-# don't know about by name yet.
+# don't know about by name yet. Deliberately excludes anything that looks
+# like a credential (TOKEN/KEY/SECRET/AUTH/...) since those are commonly
+# exported in normal interactive shells too (e.g. CLAUDE_CODE_OAUTH_TOKEN
+# for CLI auth) and are not a reliable signal that an agent is *actively
+# driving* this shell right now.
 check_heuristic_agent_var() {
-  env | grep -Eiom1 '^(CLAUDE|CURSOR|CODEX|COPILOT|AIDER|OPENCODE|GOOSE|WINDSURF|CLINE|MITSUPI|AGENT_HARNESS|LLM_AGENT)[A-Z_]*=' | sed 's/=.*//'
+  env |
+    grep -Eio '^(CLAUDE|CURSOR|CODEX|COPILOT|AIDER|OPENCODE|GOOSE|WINDSURF|CLINE|MITSUPI|AGENT_HARNESS|LLM_AGENT)[A-Z_]*=' |
+    grep -Evi '(TOKEN|KEY|SECRET|AUTH|CREDENTIAL|PASSWORD)[A-Z_]*=' |
+    sed 's/=.*//' |
+    head -n1
 }
 
 check_dumb_term() {
