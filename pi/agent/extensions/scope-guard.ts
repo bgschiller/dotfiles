@@ -148,27 +148,81 @@ function findBroadSearch(rest: string): BroadSearchMatch | null {
 interface GrepFilteredFindMatch {
 	findPart: string;
 	excluded: string;
+	// Which recursive search tool produced the piped-in stage, so the
+	// suggested fix can use tool-appropriate pruning syntax.
+	sourceTool: "find" | "grep" | "rg" | "ag" | "ack";
 }
 
 // Split a full command into pipeline stages on a single `|` (not `||`,
 // which is a shell OR, not a pipe). This intentionally differs from
 // splitSubcommands (which treats every `|` as a separator) because we need
-// to correlate a `find` stage with the very next stage it feeds into.
+// to correlate a recursive-search stage with the very next stage it feeds
+// into.
+//
+// Quote-aware: a `|` that appears inside a single- or double-quoted string
+// (e.g. a grep pattern like "foo|bar") is not a pipeline separator and must
+// not be split on, or we misparse the command and fail to recognize the
+// anti-pattern entirely.
 function splitPipeline(command: string): string[] {
-	return command.split(/(?<!\|)\|(?!\|)/).map((s) => s.trim());
+	const stages: string[] = [];
+	let current = "";
+	let quote: '"' | "'" | null = null;
+
+	for (let i = 0; i < command.length; i++) {
+		const ch = command[i];
+
+		if (quote) {
+			current += ch;
+			if (ch === quote) quote = null;
+			continue;
+		}
+
+		if (ch === '"' || ch === "'") {
+			quote = ch;
+			current += ch;
+			continue;
+		}
+
+		if (ch === "|" && command[i + 1] !== "|" && command[i - 1] !== "|") {
+			stages.push(current);
+			current = "";
+			continue;
+		}
+
+		current += ch;
+	}
+	stages.push(current);
+
+	return stages.map((s) => s.trim());
 }
 
-// Detect the anti-pattern `find ... | grep -v <term>` (or egrep/fgrep),
-// where a directory-pruning filter is bolted on *after* find instead of
-// telling find to prune that branch itself. Piping through `grep -v` still
-// makes find recurse into every excluded directory (e.g. node_modules)
-// before the results get thrown away, which is wasteful on large trees.
+// Identify whether a pipeline stage is a recursive filesystem search
+// (find, or grep/egrep/fgrep/rg/ag/ack run recursively) and, if so, which
+// tool it is - so the pruning advice can be tailored to that tool's own
+// exclude syntax.
+function recursiveSearchTool(stage: string): GrepFilteredFindMatch["sourceTool"] | null {
+	if (/(?:^|\s)find\s/.test(stage)) return "find";
+	if (/(?:^|\s)rg\s/.test(stage)) return "rg";
+	if (/(?:^|\s)ag\s/.test(stage)) return "ag";
+	if (/(?:^|\s)ack\s/.test(stage)) return "ack";
+	if (/(?:^|\s)(?:grep|egrep|fgrep)\s+(?:-\w*[rR]\w*|--recursive)\b/.test(stage)) return "grep";
+	return null;
+}
+
+// Detect the anti-pattern `<recursive search> ... | grep -v <term>` (e.g.
+// `find ... | grep -v node_modules` or `grep -rn ... | grep -v node_modules`),
+// where a directory-pruning filter is bolted on *after* the search instead
+// of telling the search tool to prune/exclude that branch itself. Piping
+// through `grep -v` still makes the first-stage tool recurse into every
+// excluded directory (e.g. node_modules) before the results get thrown
+// away, which is wasteful on large trees.
 function findGrepFilteredFind(command: string): GrepFilteredFindMatch | null {
 	const stages = splitPipeline(command);
 
 	for (let i = 0; i < stages.length - 1; i++) {
 		const stage = stages[i];
-		if (!/(?:^|\s)find\s/.test(stage)) continue;
+		const sourceTool = recursiveSearchTool(stage);
+		if (!sourceTool) continue;
 
 		const next = stages[i + 1];
 		const grepMatch = next.match(/^(?:grep|egrep|fgrep)\s+(.+)$/s);
@@ -191,10 +245,39 @@ function findGrepFilteredFind(command: string): GrepFilteredFindMatch | null {
 		if (!excluded) continue;
 
 		excluded = excluded.replace(/^['"]|['"]$/g, "");
-		return { findPart: stage, excluded };
+		return { findPart: stage, excluded, sourceTool };
 	}
 
 	return null;
+}
+
+// Tool-specific advice for pruning/excluding a directory at the source
+// instead of filtering it out after the fact with `grep -v`.
+function pruneAdvice(match: GrepFilteredFindMatch): string {
+	const { sourceTool, findPart, excluded } = match;
+	switch (sourceTool) {
+		case "find":
+			return (
+				`Tell find to prune that directory itself instead so it skips those branches entirely, e.g.: ` +
+				`find . -path '*/${excluded}' -prune -o \\( <your -name/-iname tests> \\) -print.`
+			);
+		case "grep":
+			return (
+				`Tell grep to exclude that directory itself instead so it skips those branches entirely, e.g.: ` +
+				`${findPart} --exclude-dir=${excluded}`
+			);
+		case "rg":
+			return (
+				`Tell ripgrep to exclude that directory itself instead so it skips those branches entirely, e.g.: ` +
+				`${findPart} --glob '!${excluded}'`
+			);
+		case "ag":
+		case "ack":
+			return (
+				`Tell ${sourceTool} to ignore that directory itself instead so it skips those branches entirely, e.g.: ` +
+				`${findPart} --ignore-dir=${excluded}`
+			);
+	}
 }
 
 type DetectResult =
@@ -293,11 +376,10 @@ export default function (pi: ExtensionAPI) {
 				return {
 					block: true,
 					reason:
-						`Refusing to run "find ... | grep -v ${result.match.excluded}". ` +
-						`Piping find's output through "grep -v" only filters results after the fact - find still recurses into ` +
+						`Refusing to run "${result.match.findPart} | grep -v ${result.match.excluded}". ` +
+						`Piping the search output through "grep -v" only filters results after the fact - the first command still recurses into ` +
 						`every "${result.match.excluded}" directory it encounters (e.g. node_modules), which is wasteful on large trees. ` +
-						`Tell find to prune that directory itself instead so it skips those branches entirely, e.g.: ` +
-						`find . -path '*/${result.match.excluded}' -prune -o \\( <your -name/-iname tests> \\) -print. ` +
+						`${pruneAdvice(result.match)} ` +
 						`If you must filter post-hoc, prefix the command with ${OVERRIDE_VAR}="<substantive reason>" to override, e.g. ` +
 						`${OVERRIDE_VAR}="one-off exploratory scan, tree is small" ${result.match.findPart} | grep -v ${result.match.excluded}`,
 				};
