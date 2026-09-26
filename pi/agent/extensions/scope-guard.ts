@@ -209,6 +209,35 @@ function recursiveSearchTool(stage: string): GrepFilteredFindMatch["sourceTool"]
 	return null;
 }
 
+// Known bulky directories that are expensive to recurse into and are
+// commonly excluded from searches (dependency/build/vcs artifacts). The
+// `grep -v <term>` anti-pattern check below only fires when the excluded
+// term matches one of these - otherwise `grep -v` is very likely being used
+// for an ordinary content/filename filter (e.g. excluding `*.spec.ts` files
+// from results) that has nothing to do with directory pruning, and flagging
+// it would just be noise.
+const EXPENSIVE_DIR_NAMES = new Set([
+	"node_modules",
+	".git",
+	"dist",
+	"build",
+	"out",
+	"vendor",
+	".venv",
+	"venv",
+	"target",
+	"coverage",
+	".next",
+	".nuxt",
+	".cache",
+	".turbo",
+	"bower_components",
+	"__pycache__",
+	".tox",
+	".yarn",
+	"tmp",
+]);
+
 // Detect the anti-pattern `<recursive search> ... | grep -v <term>` (e.g.
 // `find ... | grep -v node_modules` or `grep -rn ... | grep -v node_modules`),
 // where a directory-pruning filter is bolted on *after* the search instead
@@ -216,6 +245,11 @@ function recursiveSearchTool(stage: string): GrepFilteredFindMatch["sourceTool"]
 // through `grep -v` still makes the first-stage tool recurse into every
 // excluded directory (e.g. node_modules) before the results get thrown
 // away, which is wasteful on large trees.
+//
+// Only fires when the excluded term is a known bulky-directory name (see
+// EXPENSIVE_DIR_NAMES) - `grep -v <arbitrary word>` is routinely used to
+// filter matched lines/filenames (e.g. `| grep -v spec` to drop `*.spec.ts`
+// results) and isn't the anti-pattern this check targets.
 function findGrepFilteredFind(command: string): GrepFilteredFindMatch | null {
 	const stages = splitPipeline(command);
 
@@ -245,6 +279,14 @@ function findGrepFilteredFind(command: string): GrepFilteredFindMatch | null {
 		if (!excluded) continue;
 
 		excluded = excluded.replace(/^['"]|['"]$/g, "");
+
+		// Only treat this as directory-pruning-after-the-fact if the excluded
+		// term is actually a known bulky directory name. Otherwise this is
+		// almost certainly an ordinary content/filename filter (e.g. `| grep -v
+		// spec` to drop `*.spec.ts` results), which has nothing to recurse
+		// into and isn't the anti-pattern this check targets.
+		if (!EXPENSIVE_DIR_NAMES.has(excluded.toLowerCase())) continue;
+
 		return { findPart: stage, excluded, sourceTool };
 	}
 
