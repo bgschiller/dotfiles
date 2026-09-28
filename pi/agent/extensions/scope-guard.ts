@@ -296,29 +296,17 @@ function findGrepFilteredFind(command: string): GrepFilteredFindMatch | null {
 // Tool-specific advice for pruning/excluding a directory at the source
 // instead of filtering it out after the fact with `grep -v`.
 function pruneAdvice(match: GrepFilteredFindMatch): string {
-	const { sourceTool, findPart, excluded } = match;
+	const { sourceTool, excluded } = match;
 	switch (sourceTool) {
 		case "find":
-			return (
-				`Tell find to prune that directory itself instead so it skips those branches entirely, e.g.: ` +
-				`find . -path '*/${excluded}' -prune -o \\( <your -name/-iname tests> \\) -print.`
-			);
+			return `Prune it instead: -path '*/${excluded}' -prune -o ... -print.`;
 		case "grep":
-			return (
-				`Tell grep to exclude that directory itself instead so it skips those branches entirely, e.g.: ` +
-				`${findPart} --exclude-dir=${excluded}`
-			);
+			return `Exclude it instead: --exclude-dir=${excluded}`;
 		case "rg":
-			return (
-				`Tell ripgrep to exclude that directory itself instead so it skips those branches entirely, e.g.: ` +
-				`${findPart} --glob '!${excluded}'`
-			);
+			return `Exclude it instead: --glob '!${excluded}'`;
 		case "ag":
 		case "ack":
-			return (
-				`Tell ${sourceTool} to ignore that directory itself instead so it skips those branches entirely, e.g.: ` +
-				`${findPart} --ignore-dir=${excluded}`
-			);
+			return `Exclude it instead: --ignore-dir=${excluded}`;
 	}
 }
 
@@ -395,35 +383,26 @@ export default function (pi: ExtensionAPI) {
 				return {
 					block: true,
 					reason:
-						`${OVERRIDE_VAR} was provided but the reason is too short/insubstantial ("${result.reason}"). ` +
-						`Give a specific, substantive justification (>= ${MIN_REASON_LENGTH} chars) for why "${result.match.tool}" ` +
-						`must scan the broad path "${result.match.path}", e.g. ` +
-						`${OVERRIDE_VAR}="need to find config across all user homes, no single subdir known" ${result.match.tool} ${result.match.path} ...`,
+						`${OVERRIDE_VAR} reason too short ("${result.reason}"). ` +
+						`Give a substantive reason (>= ${MIN_REASON_LENGTH} chars) for scanning the broad path "${result.match.path}".`,
 				};
 
 			case "blocked":
 				return {
 					block: true,
 					reason:
-						`Refusing to run "${result.match.tool}" over an overly broad path ("${result.match.path}"). ` +
-						"Scope the search to a specific directory (e.g. add a subdirectory path), " +
-						"or narrow it with flags such as -maxdepth, -name, -path, or a glob, " +
-						"to avoid scanning the entire filesystem. " +
-						`If this broad scan is genuinely necessary, prefix the command with ` +
-						`${OVERRIDE_VAR}="<substantive reason>" to override, e.g. ` +
-						`${OVERRIDE_VAR}="user's file could be anywhere under /, no candidate dir known" ${result.match.tool} ${result.match.path} ...`,
+						`"${result.match.path}" is too broad a path for "${result.match.tool}". ` +
+						"Scope to a subdirectory or narrow with -maxdepth/-name/-path/glob. " +
+						`Or override with ${OVERRIDE_VAR}="<substantive reason>".`,
 				};
 
 			case "grep-filtered-find-blocked":
 				return {
 					block: true,
 					reason:
-						`Refusing to run "${result.match.findPart} | grep -v ${result.match.excluded}". ` +
-						`Piping the search output through "grep -v" only filters results after the fact - the first command still recurses into ` +
-						`every "${result.match.excluded}" directory it encounters (e.g. node_modules), which is wasteful on large trees. ` +
-						`${pruneAdvice(result.match)} ` +
-						`If you must filter post-hoc, prefix the command with ${OVERRIDE_VAR}="<substantive reason>" to override, e.g. ` +
-						`${OVERRIDE_VAR}="one-off exploratory scan, tree is small" ${result.match.findPart} | grep -v ${result.match.excluded}`,
+						`Piping to "grep -v" only filters after the fact - ${result.match.sourceTool} still recurses into every ` +
+						`"${result.match.excluded}" dir first. ${pruneAdvice(result.match)} ` +
+						`Or override with ${OVERRIDE_VAR}="<substantive reason>".`,
 				};
 		}
 	});
