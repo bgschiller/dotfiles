@@ -281,8 +281,19 @@ if [[ -d "$HOME/.local/share/fnm" && ":$PATH:" != *":$HOME/.local/share/fnm:"* ]
 fi
 
 # Pi
+# Launch pi with an explicit node binary + entry script rather than
+# `fnm exec --using=default`. This keeps pi's own runtime pinned to the
+# node version it was installed under, WITHOUT rewriting PATH for the
+# whole process tree -- so anything pi shells out to (its Bash tool,
+# git hooks it triggers, etc.) still inherits whatever node version fnm
+# already resolved for the current directory (via --use-on-cd) instead
+# of being stuck on `default`.
+PI_NODE_VERSION_DIR="$HOME/.local/share/fnm/node-versions/v22.22.0/installation"
 pi() {
-  command env PI_CODING_AGENT_DIR="$HOME/.pi/agent" fnm exec --using=default pi "$@"
+  command env PI_CODING_AGENT_DIR="$HOME/.pi/agent" \
+    "$PI_NODE_VERSION_DIR/bin/node" \
+    "$PI_NODE_VERSION_DIR/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js" \
+    "$@"
 }
 
 # fnm (Fast Node Manager) - per-shell node versions, reads .node-version/.nvmrc

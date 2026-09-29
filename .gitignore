@@ -23,6 +23,7 @@ claude/.update.lock
 claude/backups/
 claude/sessions/
 claude/policy-limits.json
+claude/policy-limits.json.stamp.json
 claude/tasks/
 claude/.last-cleanup
 claude/daemon.lock
