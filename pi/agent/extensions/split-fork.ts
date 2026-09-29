@@ -85,15 +85,22 @@ export default function (pi: ExtensionAPI): void {
 
 			// tmux spawns panes from the tmux *server* environment, not this pi
 			// process's env, so PI_CODING_AGENT_DIR (which selects the agent dir +
-			// auth) would be lost. Re-export the PI_* vars explicitly.
-			const envExports = Object.entries(process.env)
+			// auth) would be lost. Pass the PI_* vars via `env` scoped to just the
+			// piCommand invocation, rather than `export`ing them into the pane's
+			// shell: `export` sticks around (surviving `exec`) in the plain shell
+			// we fall back to once the forked pi exits, which previously left
+			// leftover panes with e.g. PI_CODING_AGENT=true permanently exported —
+			// tricking things like git-diff-mode into thinking an ordinary human
+			// interactive pane was agent-driven. `env` avoids that entirely since
+			// the vars only apply to the one command being run.
+			const envAssignments = Object.entries(process.env)
 				.filter(([key, value]) => key.startsWith("PI_") && value !== undefined)
-				.map(([key, value]) => `export ${key}=${shellQuote(value as string)}`)
-				.join("; ");
+				.map(([key, value]) => `${key}=${shellQuote(value as string)}`)
+				.join(" ");
 
 			// Keep the pane alive on exit so any error output stays visible.
-			const prefix = envExports ? `${envExports}; ` : "";
-			const paneCommand = `${prefix}${piCommand}; echo; echo '[split-fork pane exited]'; exec ${process.env.SHELL || "/bin/sh"}`;
+			const envPrefix = envAssignments ? `env ${envAssignments} ` : "";
+			const paneCommand = `${envPrefix}${piCommand}; echo; echo '[split-fork pane exited]'; exec ${process.env.SHELL || "/bin/sh"}`;
 
 			const result = await pi.exec("tmux", [
 				"split-window",
