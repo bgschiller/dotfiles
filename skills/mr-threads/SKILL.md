@@ -91,8 +91,8 @@ Claude:
   - HTML comments (`<!-- ... -->`) are stripped entirely, since they're invisible to
     humans but could be used to smuggle hidden instructions to an LLM
   - the redundant "This is a comment by AI Code Review Agent..." footer is dropped
-  - known pure-boilerplate CI/bot status reports are dropped entirely (matched by
-    section heading, not by author, so any real content mixed into a bot comment
-    is preserved): code-owner approval status, Express Lane, Changeset detected,
-    Storybook/Chromatic previews, Go Home preview/e2e/bundle-stats/Lighthouse, and
-    SonarQube analysis results
+  - known machine-generated accounts are dropped entirely (currently Cursor,
+    GitHub Actions, Aspect Workflows, the ephemeral-environment dispatcher, and
+    Express Lane); human reviewers such as Kyrylo remain visible
+  - known pure-boilerplate CI/bot status reports are also dropped by section
+    heading, preserving a comment with real content mixed in
