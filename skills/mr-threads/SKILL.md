@@ -90,9 +90,11 @@ Claude:
   - `<img alt="X" ...>` tags (and their wrapping `<a>` links) are collapsed to just `X`
   - HTML comments (`<!-- ... -->`) are stripped entirely, since they're invisible to
     humans but could be used to smuggle hidden instructions to an LLM
-  - the redundant "This is a comment by AI Code Review Agent..." footer is dropped
-  - known machine-generated accounts are dropped entirely (currently Cursor,
-    GitHub Actions, Aspect Workflows, the ephemeral-environment dispatcher, and
-    Express Lane); human reviewers such as Kyrylo remain visible
+  - redundant AI-review footers and Cursor Bugbot “Fix in Cursor/Web” action
+    buttons are dropped
+  - known machine-generated status accounts are dropped entirely (currently
+    GitHub Actions, Aspect Workflows, Linear, the release-automation and
+    ephemeral-environment bots, and Express Lane); review findings from Cursor
+    and human reviewers such as Kyrylo remain visible
   - known pure-boilerplate CI/bot status reports are also dropped by section
     heading, preserving a comment with real content mixed in

@@ -30,13 +30,15 @@ die() {
 # - collapse <img alt="X" ...> to just X (covers table cells and inline badges alike)
 # - drop the now-empty <a>...</a> wrappers around those images
 # - strip HTML comments entirely (can smuggle hidden instructions to an LLM)
-# - drop the redundant "This is a comment by AI Code Review Agent..." footer
+# - drop redundant AI-review and Cursor Bugbot footers and action buttons
 # - collapse the resulting runs of blank lines
 clean_markdown() {
   perl -0777 -pe '
     s/<img[^>]*\balt="([^"]*)"[^>]*>/$1/gi;
     s/<\/?a[^>]*>//gi;
     s/<!--.*?-->//gs;
+    s{<div>.*?cursor\.com/assets/images/fix-in-(?:cursor|web).*?</div>\n*}{}gis;
+    s{<sup>Reviewed by \[Cursor Bugbot\]\(https://cursor\.com/bugbot\).*?</sup>\n*}{}gis;
     s/[_*]This is a comment by AI Code Review Agent.*?\n\n/\n/gs;
     s/\n{3,}/\n\n/g;
   '
@@ -64,11 +66,12 @@ readonly MR_THREADS_NOISE_PATTERNS='[
 # allowlist of known bot accounts, rather than a broad name heuristic, so human
 # reviewers such as @kirill-koshil_super remain visible.
 readonly MR_THREADS_NOISE_AUTHORS='[
-  "cursor",
   "github-actions",
   "aspect-workflows",
   "superhuman-ee-dispatcher",
-  "expresslane-bot_super"
+  "expresslane-bot_super",
+  "linear-code",
+  "fewm-release-automation"
 ]'
 
 # jq `def` for filtering: given a comment/note, true if its body is boilerplate
