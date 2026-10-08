@@ -1,6 +1,6 @@
 {
-  "defaultProvider": "cursor",
-  "defaultModel": "auto",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6.1-sol",
   "defaultThinkingLevel": "medium",
   "enableSkillCommands": true,
   "packages": [
@@ -32,17 +32,18 @@
     },
     "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0",
     "npm:pi-claude-oauth-adapter",
-    "npm:pi-cursor-sdk"
+    "npm:pi-cursor-sdk",
+    "npm:billion-context-pi"
   ],
   "enabledModels": [
-    "anthropic/claude-opus-5",
-    "anthropic/claude-sonnet-5",
-    "anthropic/claude-haiku-4-5",
-    "cursor/auto"
+    "openai-codex/gpt-5.6-terra",
+    "openai-codex/gpt-6.1-sol",
+    "openai-codex/gpt-5.6-luna"
   ],
   "lastChangelogVersion": "0.85.1",
   "theme": "dark",
   "warnings": {
     "anthropicExtraUsage": false
-  }
+  },
+  "hideThinkingBlock": false
 }

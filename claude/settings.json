@@ -125,6 +125,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "sonnet",
   "hooks": {
     "Stop": [
       {
@@ -164,6 +165,12 @@
         "source": "github",
         "repo": "onesuper/tui-use"
       }
+    },
+    "workspace": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/brian/work/release-engineering-workspace/.claude/plugins"
+      }
     }
   },
   "alwaysThinkingEnabled": false,
@@ -171,6 +178,5 @@
   "awaySummaryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "skipAutoPermissionPrompt": true,
-  "model": "sonnet"
+  "skipAutoPermissionPrompt": true
 }
