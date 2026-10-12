@@ -32,13 +32,15 @@
     },
     "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0",
     "npm:pi-claude-oauth-adapter",
-    "npm:pi-cursor-sdk",
     "npm:billion-context-pi"
   ],
   "enabledModels": [
     "openai-codex/gpt-5.6-terra",
     "openai-codex/gpt-6.1-sol",
-    "openai-codex/gpt-5.6-luna"
+    "openai-codex/gpt-5.6-luna",
+    "deepseek/deepseek-v4-pro",
+    "deepseek/deepseek-v4-flash",
+    "deepseek/deepseek-flash"
   ],
   "lastChangelogVersion": "0.85.1",
   "theme": "dark",

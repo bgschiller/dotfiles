@@ -288,11 +288,31 @@ fi
 # git hooks it triggers, etc.) still inherits whatever node version fnm
 # already resolved for the current directory (via --use-on-cd) instead
 # of being stuck on `default`.
-PI_NODE_VERSION_DIR="$HOME/.local/share/fnm/node-versions/v22.22.0/installation"
+# Resolve the node version dir dynamically: pi lives under whichever fnm
+# version was current when it was installed, and its entry point has moved
+# over time (dist/bundle/cli.js -> dist/cli.js), so probe both. This keeps
+# pi's runtime pinned to the version it was installed under without
+# hardcoding a per-machine path.
+_pi_node_dir=""
+_pi_entry=""
+for _d in "$HOME/.local/share/fnm/node-versions/"*/installation(N); do
+  for _e in bundle/cli.js cli.js; do
+    _f="$_d/lib/node_modules/@earendil-works/pi-coding-agent/dist/$_e"
+    if [[ -f "$_f" ]]; then
+      _pi_node_dir="$_d"
+      _pi_entry="$_f"
+      break 2
+    fi
+  done
+done
 pi() {
+  if [[ -z "$_pi_entry" ]]; then
+    command pi "$@"
+    return
+  fi
   command env PI_CODING_AGENT_DIR="$HOME/.pi/agent" \
-    "$PI_NODE_VERSION_DIR/bin/node" \
-    "$PI_NODE_VERSION_DIR/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js" \
+    "$_pi_node_dir/bin/node" \
+    "$_pi_entry" \
     "$@"
 }
 

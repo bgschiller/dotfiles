@@ -1,5 +1,6 @@
 auth*.json
 npm/node_modules
 sessions
+bin
 
 cursor-sdk-*.json
