@@ -32,7 +32,8 @@
     },
     "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0",
     "npm:pi-claude-oauth-adapter",
-    "npm:billion-context-pi"
+    "npm:billion-context-pi",
+    "npm:pi-subagents"
   ],
   "enabledModels": [
     "openai-codex/gpt-5.6-terra",
