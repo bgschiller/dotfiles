@@ -43,8 +43,9 @@
     "deepseek/deepseek-v4-flash",
     "deepseek/deepseek-flash"
   ],
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "1.2.0",
   "theme": "dark",
+  "tuiMode": "regular",
   "warnings": {
     "anthropicExtraUsage": false
   },
