@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+// Report program status, highlight tmux, and (for attention states) chime.
+const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+
+function singleLine(message) {
+  // Keep terminal payloads single-line and bounded to 2048 UTF-8 bytes.
+  const clean = message.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
+  let text = '';
+  for (const char of clean) {
+    if (Buffer.byteLength(text + char) > 2048) break;
+    text += char;
+  }
+  return text;
+}
+
+function oscStatus(state, app, message) {
+  return `\x1b]7501;state=${state}:app=${app}:msg=${Buffer.from(singleLine(message)).toString('base64')}\x1b\\`;
+}
+
+function oscNotification(app, message) {
+  // OSC 777 fields are plain text separated by semicolons, not base64.
+  const field = (text) => singleLine(text).replace(/;/g, ',');
+  return `\x1b]777;notify;${field(app)};${field(message)}\x1b\\`;
+}
+
+function passthrough(sequence, tmux) {
+  return tmux ? `\x1bPtmux;${sequence.replace(/\x1b/g, '\x1b\x1b')}\x1b\\` : sequence;
+}
+
+function main(args) {
+  let state = 'done';
+  let app = 'get-user-attention';
+  let quiet = false;
+  let tty;
+  const words = [];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--help') {
+      console.log('Usage: get-user-attention [--state idle|working|done|blocked|error|clear] [--app NAME] [--quiet] [--tty /dev/pts/N] [--] [message]');
+      return;
+    }
+    if (arg === '--') { words.push(...args.slice(i + 1)); break; }
+    if (arg === '--state') state = args[++i];
+    else if (arg === '--app') app = args[++i];
+    else if (arg === '--tty') { tty = args[++i]; if (!tty) throw new Error('--tty requires a path'); }
+    else if (arg === '--quiet') quiet = true;
+    else if (arg.startsWith('--')) throw new Error(`Unknown option: ${arg}`);
+    else words.push(arg);
+  }
+  if (!['idle', 'working', 'done', 'blocked', 'error', 'clear'].includes(state)) throw new Error('Invalid state');
+  if (typeof app !== 'string' || !/^[A-Za-z0-9_.+-]{1,32}$/.test(app)) throw new Error('Invalid app name');
+  const attention = ['done', 'blocked', 'error'].includes(state);
+  const run = (command, argv) => {
+    try { execFileSync(command, argv, { stdio: 'ignore', timeout: 3000 }); return true; }
+    catch { return false; } // Notifications must not break the caller's work.
+  };
+  if (process.env.TMUX_PANE) {
+    run('tmux', ['set-window-option', '-t', process.env.TMUX_PANE, '@user_attention', attention ? '1' : '0']);
+  }
+
+  // Open the controlling terminal even when stdout is captured by Pi/a log.
+  // --tty also supports detached watchers that no longer have a controlling tty.
+  let fd;
+  let owned = false;
+  try {
+    if (tty) { fd = fs.openSync(tty, 'w'); owned = true; }
+    else if (process.stdout.isTTY) fd = 1;
+    else { fd = fs.openSync('/dev/tty', 'w'); owned = true; }
+    const message = words.join(' ') || 'Ready for your attention';
+    fs.writeSync(fd, passthrough(oscStatus(state, app, message), !!process.env.TMUX));
+    if (attention) {
+      fs.writeSync(fd, passthrough(oscNotification(app, message), !!process.env.TMUX));
+    }
+    // Remote sound must be played by the LOCAL terminal, not the SSH server.
+    if (attention && !quiet && (process.env.SSH_CONNECTION || process.env.SSH_TTY || process.platform === 'linux')) {
+      fs.writeSync(fd, '\x07');
+    }
+  } catch {
+    // No terminal (cron, disconnected SSH, etc.): tmux/sound may still work.
+  } finally {
+    if (owned) fs.closeSync(fd);
+  }
+  if (attention && !quiet && !process.env.SSH_CONNECTION && !process.env.SSH_TTY) {
+    if (process.platform === 'darwin') run('afplay', ['/System/Library/Sounds/Glass.aiff']);
+    else if (process.platform === 'win32') run('powershell', ['-c', '[System.Media.SystemSounds]::Beep.Play()']);
+  }
+}
+
+if (require.main === module) {
+  try { main(process.argv.slice(2)); }
+  catch (error) { console.error(error.message); process.exitCode = 1; }
+}
+module.exports = { main, oscStatus, oscNotification, passthrough };
