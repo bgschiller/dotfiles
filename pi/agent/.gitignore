@@ -4,3 +4,7 @@ sessions
 bin
 
 cursor-sdk-*.json
+
+/install/
+/missions/
+/pi-subagents/last-seen-version.json
