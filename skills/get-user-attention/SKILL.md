@@ -7,15 +7,14 @@ description: Notify the user when requested background work finishes or needs in
 
 `~/bin/get-user-attention "CI for feature-x passed"` requests user attention.
 It plays a local chime (terminal bell over SSH/on Linux), highlights the tmux
-window, emits OSC 7501 program status, and sends an OSC 777 desktop notification
-for `done`, `blocked`, or `error`. Requires Node.js on the executing host.
+window, and emits OSC 7501 program status. It does not send desktop notifications.
+Requires Node.js on the executing host.
 
 - Default state is `done`. Use `--state error` for failure or `--state blocked`
   when a human must act. `--state working --quiet` reports progress without a chime
   or highlight. `--state idle --quiet` clears the tmux highlight and reports idle.
 - `--app ci-watch` supplies a stable identifier (1–32 letters, digits, `_.+-`).
-- `--quiet` suppresses the script's sound, not status, desktop notifications, or
-  the tmux highlight. The OS may independently play a notification sound.
+- `--quiet` suppresses the script's sound, not status or the tmux highlight.
 - Messages are single-line text; never include credentials or sensitive logs.
 - Notify once on the requested terminal condition, not on every poll. Pin the
   exact branch/commit/pipeline; report pass/fail/cancelled truthfully. Bound polling
@@ -55,10 +54,5 @@ other terminal escape sequences, so use trusted workloads. The script wraps one
 tmux layer. Nested tmux (including local tmux around remote tmux) needs additional
 wrapping/configuration; it is not handled automatically. A terminal without OSC
 7501 support ignores it; tmux highlighting and existing sound remain available.
-
-Ghostty desktop notifications use `desktop-notifications = true` (the default).
-On macOS, also allow Ghostty notifications in System Settings → Notifications.
-Presentation while focused and Do Not Disturb behavior are terminal/OS policy.
-OSC 7501 status alone does not guarantee a desktop notification.
 
 Protocol: https://www.superlogical.com/rex/docs/build/program-status
