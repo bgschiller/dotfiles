@@ -1,4 +1,6 @@
 auth*.json
+mcp-auth.json
+mcp.log*
 npm/node_modules
 sessions
 bin
