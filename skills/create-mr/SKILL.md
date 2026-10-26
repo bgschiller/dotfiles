@@ -1,232 +1,96 @@
 ---
 name: create-mr
 description: Create a GitHub PR or GitLab MR using conversation context
+# Explicit invocation only; this is intentionally not an automatic skill trigger.
 disable-model-invocation: true
-allowed-tools:
-  - Read
-  - Write
-  - Glob
-  - Bash(git:*)
-  - Bash(gh pr create:*)
-  - Bash(gh repo view:*)
-  - Bash(glab mr create:*)
-  - Bash(glab repo view:*)
-  - Bash(scripts/glab-mr-helper.sh:*)
-  - Bash(../human-review/scripts/open-editor.sh:*)
 ---
 
-# Create Merge Request / Pull Request
+# Create a Pull Request / Merge Request
 
-Create a GitHub pull request or GitLab merge request using the context already
-present in this Claude session. Detect the platform from the origin URL and use
-the matching CLI.
+Use the current conversation, commits, and diff to prepare a PR/MR. Always get Brian's approval of the draft before creating it.
 
-## Detect platform
+Run Git and platform commands from the target repository. Resolve helper scripts from their skill directories, not the target project's `scripts/` directory:
 
 ```bash
-ORIGIN_URL=$(git remote get-url origin)
-if [[ "$ORIGIN_URL" =~ github\.com ]]; then
-  REPO_TYPE=github  # use gh
-elif [[ "$ORIGIN_URL" =~ gitlab ]]; then
-  REPO_TYPE=gitlab  # use glab
-fi
+MR_HELPER="$HOME/.agents/skills/create-mr/scripts/glab-mr-helper.sh"
+REVIEW_HELPER="$HOME/.agents/skills/human-review/scripts/open-editor.sh"
 ```
 
-## CLI reference
+If this discovery path is unavailable, resolve each helper against its own skill's `SKILL.md` directory.
 
-GitHub (`gh`):
+## 1. Inspect the branch and platform
 
 ```bash
-# Create PR
-gh pr create --title "Title" --body "Body" --base main
-
-# View repo info
-gh repo view
+git remote get-url origin
+git branch --show-current
+git status --short
 ```
 
-GitLab (`glab`):
+Use `gh` for GitHub and `glab` for GitLab. For an unfamiliar/self-hosted remote, establish the platform rather than guessing. Requires the matching CLI authenticated; the GitLab helper also requires `jq`.
+
+Determine the base from the stack/project conventions. `git merge-target` is available in Brian's dotfiles; use it when appropriate. If that fails, inspect the repository's default branch and stack before choosing a base—do not silently assume `main`.
+
+Check whether the branch exists on the intended remote and whether local commits are pushed. Obtain approval before any push; do not force-push merely to create a PR/MR.
+
+## 2. Draft from context
+
+With the chosen base:
 
 ```bash
-# Create MR
-glab mr create --title "Title" --description "Body" --target-branch main --remove-source-branch --squash-before-merge --yes
-
-# View project info (includes project ID)
-glab repo view
-
-# List open MRs (useful for finding parent MRs)
-glab mr list --state opened
+git log --oneline "$TARGET"..HEAD
+git diff "$TARGET"...HEAD
 ```
 
-For GitLab-specific API operations (finding parent MRs, creating blocking
-relationships), use the helper script at
-`scripts/glab-mr-helper.sh`. There is no GitHub
-equivalent — see step 6.
+Follow the project's PR/MR template if present. Otherwise include:
 
-## Steps
+- **Context:** what problem motivated the change.
+- **Approach:** what changed and why.
+- **Testing:** actual checks performed, including limitations.
 
-### 1. Check if branch is pushed to origin
+Use a concise, imperative title of at most 80 characters. Incorporate relevant conversation reasoning, not just commit subjects. Never invent test results.
 
-```bash
-git branch --show-current | sed 's|^|origin/|g' | xargs git rev-parse --verify
-```
+## 3. Review
 
-If this fails, push the branch:
+Write a temporary Markdown file with the title on the first line and description below it. Use the `human-review` skill to open it, compare edits, and clean up afterward. Tell Brian what is being opened. Empty/whitespace-only content means abort.
 
-```bash
-git push -u origin $(git branch --show-current)
-```
+Parse the approved title and description. Keep the description in a temporary file for safe CLI input. Do not delete unrelated `mr-*.md` files from the project.
 
-### 2. Determine target branch
-
-```bash
-git merge-target || echo 'main'
-```
-
-### 3. Generate title and description
-
-Review the commits and diffs:
-
-```bash
-# Get target branch
-TARGET=$(git merge-target || echo 'main')
-
-# See all commits
-git log --oneline $TARGET..HEAD
-
-# See full commit messages
-git log $TARGET..HEAD
-
-# See the complete diff
-git diff $TARGET...HEAD
-```
-
-#### Title Guidelines
-
-- Max 80 characters
-- Imperative mood ("Add feature" not "Added feature")
-- Concise but descriptive
-
-#### Description Guidelines
-
-Brian's preferred description format:
-
-1. **Context first**: Explain the problem or need that motivated this change
-2. **Approach**: Describe what you did and why you chose this approach
-3. **Testing**: How was this tested? Include manual testing steps if applicable
-4. **Conversation context**: Reference relevant discussion from this Claude session
-
-Check for templates:
-
-- GitLab: `.gitlab/merge_request_templates/Default.md` or `.gitlab/merge_request_templates/default.md`
-- GitHub: `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE.md`
-
-If a template exists, follow its structure.
-
-### 4. Open content in editor
-
-Write the draft to a file in the current directory:
-
-```bash
-# Filename: mr-<sanitized-branch-name>.md
-# Format:
-# Title here
-#
-# Description starts here
-# and continues...
-```
-
-Open the file for Brian to review and edit:
-
-```bash
-../human-review/scripts/open-editor.sh mr-branch-name.md
-```
-
-After Brian saves and closes:
-
-- Parse title from first line (strip leading `#` if present)
-- Parse description from remaining content
-- If file is empty/whitespace only, abort
-- Delete the temp file and the mr-branch-name.md files
-
-### 5. Create the MR or PR
-
-Use the invocation that matches `REPO_TYPE`.
+## 4. Create the PR/MR
 
 GitHub:
 
 ```bash
-gh pr create \
-  --title "Title from editor" \
-  --body "Description from editor" \
-  --base "$TARGET"
+gh pr create --title "$TITLE" --body-file "$BODY_FILE" --base "$TARGET"
 ```
 
 GitLab:
 
 ```bash
-glab mr create \
-  --title "Title from editor" \
-  --description "Description from editor" \
-  --target-branch "$TARGET" \
-  --remove-source-branch \
-  --squash-before-merge \
-  --yes
+glab mr create --title "$TITLE" --description "$(<"$BODY_FILE")" \
+  --target-branch "$TARGET" --remove-source-branch --yes
 ```
 
-Extract the URL and number from the output (the URL ends in the number).
+Do not enable squash automatically: it can disrupt git-branchless stacks. Follow the repository's merge policy and the selected stack tool's guidance.
 
-### 6. Handle stacked MRs (GitLab only)
+For GitHub stacks managed with `gh stack`, consult `gh-stack` before creating a standalone PR; use the stack workflow if that is how the branches are managed. Do not create duplicate PRs.
 
-**When the target branch is not `main`**, this is a stacked change.
+## 5. Stacked GitLab MRs
 
-On **GitLab**, set up a blocking dependency so the parent must merge first:
+If the chosen base is another feature branch, set a blocking relationship with its parent MR:
 
 ```bash
-scripts/glab-mr-helper.sh set-blocking <this-mr-number> <target-branch>
+"$MR_HELPER" set-blocking <new-mr-number> "$TARGET"
 ```
 
-The helper:
+The helper finds the parent's MR and adds the dependency. If the parent cannot be found or this operation fails, warn explicitly; do not claim the stack is configured. A non-`main` base alone does not establish a stack: the project may use another integration branch.
 
-1. Finds the open MR where source branch = our target branch (the parent MR)
-2. Creates a blocking relationship so the parent must merge first
+## 6. Report
 
-If the parent MR can't be found or the blocking setup fails, warn but don't fail the whole operation.
+Return the created URL and a copyable review request:
 
-On **GitHub**, skip this step. GitHub has no blocking-PR API. The PR is created
-against the chosen target branch and that's it.
-
-### 7. Generate Slack review request
-
-Output for Brian to copy. Use "MR" for GitLab, "PR" for GitHub:
-
-```
-Please review my MR to [$TITLE]($URL)
-Please review my PR to [$TITLE]($URL)
+```text
+Please review my PR to [TITLE](URL)
+Please review my MR to [TITLE](URL)
 ```
 
-## Key Points
-
-- Leverage conversation context from this Claude session
-- The description should reflect the reasoning and discussion, not just commits
-- Always confirm with Brian before creating the MR/PR
-- Handle errors gracefully and report them clearly
-
-## Example Workflow
-
-```
-Claude: "I see you're on branch feature/add-validation in a GitHub repo. Let me check if it's pushed..."
-Claude: "Branch is pushed. Target branch is 'develop'."
-Claude: "Based on our work, here's the proposed PR:
-
-Title: Add input validation to user registration
-
-Description:
-## Summary
-Implement comprehensive input validation...
-
-Does this look good? Should I proceed?"
-
-Brian: "yes"
-
-Claude: [creates PR via gh, shows Slack message]
-```
+Use only the line matching the platform. Clean up only the temporary files created for this invocation.

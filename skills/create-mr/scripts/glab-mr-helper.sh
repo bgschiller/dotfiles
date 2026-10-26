@@ -1,7 +1,7 @@
 #!/bin/bash
 # Helper script for glab API operations during MR creation.
-# This script is intended to be allow-listed in Claude settings to avoid
-# repeated permission prompts for glab api commands.
+# Read operations inspect the current project; set-blocking writes a dependency
+# and should only be called as part of an approved MR-creation workflow.
 
 set -euo pipefail
 

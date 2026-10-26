@@ -16,24 +16,30 @@
         "+extensions/answer.ts"
       ],
       "skills": [
-        "-skills/anachb/SKILL.md",
-        "-skills/apple-mail/SKILL.md",
-        "-skills/commit/SKILL.md",
-        "-skills/ghidra/SKILL.md",
-        "-skills/google-workspace/SKILL.md",
-        "-skills/oebb-scotty/SKILL.md",
-        "-skills/openscad/SKILL.md",
-        "-skills/sentry/SKILL.md",
-        "-skills/update-changelog/SKILL.md"
+        "skills/github/SKILL.md",
+        "skills/tmux/SKILL.md",
+        "skills/native-web-search/SKILL.md",
+        "skills/librarian/SKILL.md",
+        "skills/web-browser/SKILL.md"
       ],
       "themes": [
         "-themes/nightowl.json"
       ]
     },
-    "../../.claude/plugins/cache/superhuman-aidev/review/0.69.0",
-    "npm:pi-claude-oauth-adapter",
-    "npm:billion-context-pi",
-    "npm:pi-subagents"
+    {
+      "source": "npm:pi-claude-oauth-adapter",
+      "skills": []
+    },
+    {
+      "source": "npm:billion-context-pi",
+      "skills": []
+    },
+    {
+      "source": "npm:pi-subagents",
+      "skills": [
+        "skills/pi-subagents/SKILL.md"
+      ]
+    }
   ],
   "enabledModels": [
     "openai-codex/gpt-5.6-terra",

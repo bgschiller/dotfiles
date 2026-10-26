@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Safe wrapper for GitLab pipeline inspection API calls
-# This script is allowlisted for Claude to use since all operations are read-only
+# All operations are read-only.
 
 usage() {
   cat << 'EOF'
@@ -47,7 +47,7 @@ cmd_mr_pipelines() {
   local project_id
   project_id=$(get_project_id)
 
-  glab api "projects/${project_id}/merge_requests/${mr_number}/pipelines" 2>&1
+  glab api "projects/${project_id}/merge_requests/${mr_number}/pipelines?per_page=100"
 }
 
 cmd_branch_pipelines() {
@@ -59,8 +59,10 @@ cmd_branch_pipelines() {
   local project_id
   project_id=$(get_project_id)
 
-  # Fetch pipelines, filtering out external (security scan) pipelines
-  glab api "projects/${project_id}/pipelines?ref=${branch}&per_page=10" 2>&1 | \
+  local encoded_branch
+  encoded_branch=$(printf '%s' "$branch" | jq -sRr @uri)
+  # Fetch pipelines, filtering out external (security scan) pipelines.
+  glab api "projects/${project_id}/pipelines?ref=${encoded_branch}&per_page=100" | \
     jq '[.[] | select(.source != "external")]'
 }
 
@@ -75,7 +77,7 @@ cmd_pipeline_jobs() {
   local project_id
   project_id=$(get_project_id)
 
-  glab api "projects/${project_id}/pipelines/${pipeline_id}/jobs" 2>&1
+  glab api "projects/${project_id}/pipelines/${pipeline_id}/jobs?per_page=100"
 }
 
 cmd_failed_jobs() {
@@ -89,7 +91,7 @@ cmd_failed_jobs() {
   local project_id
   project_id=$(get_project_id)
 
-  glab api "projects/${project_id}/pipelines/${pipeline_id}/jobs" 2>&1 | \
+  glab api "projects/${project_id}/pipelines/${pipeline_id}/jobs?per_page=100" | \
     jq -r '.[] | select(.status == "failed") | "\(.name): \(.status) - \(.web_url)"'
 }
 

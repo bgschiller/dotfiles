@@ -2,7 +2,7 @@
 name: human-review
 description: Open a document for human review and editing. Use when a document needs Brian's input, review, or approval before proceeding.
 allowed-tools:
-  - Bash(/Users/brian/.pi/agent/skills/human-review/scripts/open-editor.sh:*)
+  - Bash(/Users/brian/.agents/skills/human-review/scripts/open-editor.sh:*)
   - Bash(/Users/brian/dotfiles/skills/human-review/scripts/open-editor.sh:*)
   - Bash(mktemp:*)
   - Bash(cp:*)
@@ -21,10 +21,10 @@ Open a document for Brian to review and edit, then continue after he's done.
 
 The editor helper is part of this skill, not part of the repository being reviewed. Do **not** run `scripts/open-editor.sh` relative to the current project.
 
-Use this installed absolute path:
+Use the shared discovery path (independent of the current project):
 
 ```bash
-/Users/brian/.pi/agent/skills/human-review/scripts/open-editor.sh "$DOCUMENT"
+"$HOME/.agents/skills/human-review/scripts/open-editor.sh" "$DOCUMENT"
 ```
 
 The dotfiles source path is also available when working inside Brian's dotfiles checkout:
@@ -35,7 +35,7 @@ The dotfiles source path is also available when working inside Brian's dotfiles 
 
 ## Arguments
 
-- `$0` - Path to the document to open for review
+- `$1` - Path to the existing document to open for review
 
 If no path is provided, ask Brian what document to open.
 
@@ -55,7 +55,7 @@ If the document has not been written to disk yet, write it first, then create th
 ### Step 2: Open the document for review
 
 ```bash
-/Users/brian/.pi/agent/skills/human-review/scripts/open-editor.sh "$DOCUMENT"
+"$HOME/.agents/skills/human-review/scripts/open-editor.sh" "$DOCUMENT"
 ```
 
 The script detects the environment and opens the editor appropriately:
