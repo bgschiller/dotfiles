@@ -1,0 +1,16 @@
+{
+  "editor:toggle-bold": [],
+  "app:toggle-left-sidebar": [
+    {
+      "modifiers": ["Mod"],
+      "key": "B"
+    }
+  ],
+  "markdown:toggle-preview": [],
+  "file-explorer:open": [
+    {
+      "modifiers": ["Mod"],
+      "key": "E"
+    }
+  ]
+}

@@ -16,6 +16,10 @@
     "C:\\Users\\BrianSchiller\\Documents\\WindowsPowerShell\\Microsoft.PowerShell_profile.ps1":
       path: Microsoft.PowerShell_profile.ps1
       if: "ver"
+    ~/notes/.obsidian/hotkeys.json:
+      path: obsidian/hotkeys.json
+    ~/household/.obsidian/hotkeys.json:
+      path: obsidian/hotkeys.json
     ~/.config/ghostty:
     ~/.config/kitty:
     ~/.clang-format: clang-format
