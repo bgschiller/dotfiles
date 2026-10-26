@@ -39,7 +39,8 @@
       "skills": [
         "skills/pi-subagents/SKILL.md"
       ]
-    }
+    },
+    "npm:potetos-for-everyone"
   ],
   "enabledModels": [
     "openai-codex/gpt-5.6-terra",
