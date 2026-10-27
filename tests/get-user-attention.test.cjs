@@ -64,16 +64,26 @@ test('rejects invalid protocol fields and options', () => {
   }
 });
 
-test('Pi only reports interactive starts and final settlement, never agent_end', async () => {
-  // Strip the type-only import; the remaining extension is plain JavaScript.
-  const source = fs.readFileSync(path.join(__dirname, '../pi/agent/extensions/get-user-attention.ts'), 'utf8')
-    .replace(/^import type .*;\n/m, '')
+function loadPiAttention() {
+  const { EventEmitter } = require('node:events');
+  const bus = new EventEmitter();
+  const events = {
+    on: (name, handler) => { bus.on(name, handler); return () => bus.off(name, handler); },
+    emit: (name, payload) => bus.emit(name, payload),
+  };
+  const source = require('node:module').stripTypeScriptTypes(fs.readFileSync(path.join(__dirname, '../pi/agent/extensions/get-user-attention.ts'), 'utf8'))
+    .replace('import { randomUUID } from "node:crypto";', 'const { randomUUID } = require("node:crypto");')
     .replace('import os from "node:os";', 'const os = require("node:os");')
     .replace('import path from "node:path";', 'const path = require("node:path");')
-    .replace('export default function (pi: ExtensionAPI)', 'module.exports = function (pi)');
+    .replace(/export default function \(pi\s*\)/, 'module.exports = function (pi)');
   const module = { exports: {} }, handlers = {}, calls = [];
-  vm.runInNewContext(source, { module, require });
-  module.exports({ on: (name, handler) => { handlers[name] = handler; }, exec: async (...args) => { calls.push(args); } });
+  vm.runInNewContext(source, { module, require, setTimeout, clearTimeout });
+  module.exports({ events, on: (name, handler) => { handlers[name] = handler; }, exec: async (...args) => { calls.push(args); } });
+  return { handlers, calls, events, bus };
+}
+
+test('Pi only reports interactive starts and final settlement, never agent_end', async () => {
+  const { handlers, calls } = loadPiAttention();
   assert.equal(handlers.agent_end, undefined);
   for (const mode of ['print', 'rpc', 'json']) {
     await handlers.agent_start({}, { mode, hasUI: true });
@@ -84,4 +94,50 @@ test('Pi only reports interactive starts and final settlement, never agent_end',
   await handlers.agent_settled({}, { mode: 'tui' });
   assert.equal(calls[0][1][1], 'working');
   assert.equal(calls[1][1][1], 'done');
+});
+
+function subagentStatus(events, data, success = true) {
+  events.emit('subagents:rpc:v1:ready', {});
+  return events.on('subagents:rpc:v1:request', (request) => {
+    events.emit(`subagents:rpc:v1:reply:${request.requestId}`, {
+      version: 1, requestId: request.requestId, success, data,
+    });
+  });
+}
+
+test('parent supervisor turns stay quiet until background children finish', async () => {
+  const { handlers, calls, events, bus } = loadPiAttention();
+  let off = subagentStatus(events, { fleet: { version: 1, totalActive: 1 } });
+  for (let turn = 0; turn < 3; turn++) {
+    await handlers.agent_start({}, { mode: 'tui' });
+    await handlers.agent_settled({}, { mode: 'tui' });
+  }
+  assert.deepEqual(calls.map((call) => call[1][1]), ['working', 'working', 'working']);
+  off();
+  subagentStatus(events, { fleet: { version: 1, totalActive: 0 } });
+  await handlers.agent_start({}, { mode: 'tui' });
+  await handlers.agent_settled({}, { mode: 'tui' });
+  assert.equal(calls.at(-1)[1][1], 'done');
+  assert.ok(!bus.eventNames().some((name) => name.startsWith('subagents:rpc:v1:reply:')));
+});
+
+test('unknown subagent status never announces completion', async () => {
+  for (const data of [undefined, {}, { fleet: { version: 1, totalActive: '0' } }]) {
+    const { handlers, calls, events } = loadPiAttention();
+    subagentStatus(events, data);
+    await handlers.agent_settled({}, { mode: 'tui' });
+    assert.equal(calls.length, 0);
+  }
+  const { handlers, calls, events } = loadPiAttention();
+  subagentStatus(events, undefined, false);
+  await handlers.agent_settled({}, { mode: 'tui' });
+  assert.equal(calls.length, 0);
+});
+
+test('unresponsive subagent status is bounded and cleans up its listener', async () => {
+  const { handlers, calls, events, bus } = loadPiAttention();
+  events.emit('subagents:rpc:v1:ready', {});
+  await handlers.agent_settled({}, { mode: 'tui' });
+  assert.equal(calls.length, 0);
+  assert.ok(!bus.eventNames().some((name) => name.startsWith('subagents:rpc:v1:reply:')));
 });
