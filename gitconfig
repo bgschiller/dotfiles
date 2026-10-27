@@ -72,9 +72,3 @@
 	clean = git-lfs clean -- %f
 [maintenance]
 	repo = /Users/brian/work/web-monorepo/boston
-[credential "https://github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
-[credential "https://gist.github.com"]
-	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
