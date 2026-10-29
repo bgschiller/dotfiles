@@ -1,5 +1,5 @@
 /**
- * my-bar — a custom footer extension based on pi-bar that adds a session cost segment.
+ * my-bar — a custom footer extension based on pi-bar with parent + subagent costs.
  *
  * Segments (left to right):
  *   <model>  ❯  think:<level>  ❯  <context% / window>  ❯  $<session cost>  ❯  <branch>  ❯  <worktree?>  ❯  <extension statuses>
@@ -71,10 +71,14 @@ function contextColor(
   return "success";
 }
 
-/** Sum cost.total across all assistant messages in the current branch. */
+/** Sum parent assistant and compaction costs in the current branch. */
 function computeSessionCost(ctx: ExtensionContext): number {
   let total = 0;
   for (const entry of ctx.sessionManager.getBranch()) {
+    if (entry.type === "compaction") {
+      total += entry.usage?.cost.total ?? 0;
+      continue;
+    }
     if (entry.type !== "message") continue;
     const msg = (entry as unknown as { message: unknown }).message as Record<string, unknown>;
     if (msg.role !== "assistant") continue;
@@ -143,8 +147,47 @@ function getWorktreeName(projectDir: string): string | null {
 export default function (pi: ExtensionAPI) {
   let requestRender: (() => void) | undefined;
   const refresh = () => requestRender?.();
+  let childCost = 0;
+  let childCostIncomplete = false;
+  let cancelCostRequest: (() => void) | undefined;
+
+  // Use the public pi-subagents RPC, not its internal accounting modules.
+  const refreshChildCost = () => {
+    if (!requestRender) return;
+    cancelCostRequest?.();
+    const requestId = crypto.randomUUID();
+    const timeout = setTimeout(() => cancel(), 5000);
+    const unsubscribe = pi.events.on(`subagents:rpc:v1:reply:${requestId}`, (value: unknown) => {
+      cancel();
+      const reply = value as {
+        version?: number;
+        success?: boolean;
+        data?: { version?: number; childTotal?: { cost?: number }; unresolvedAsyncChildren?: number };
+      } | null;
+      const cost = reply?.data?.childTotal?.cost;
+      const unresolved = reply?.data?.unresolvedAsyncChildren;
+      if (reply?.version !== 1 || reply.success !== true || reply.data?.version !== 1 ||
+          typeof cost !== "number" || !Number.isFinite(cost) || cost < 0 ||
+          typeof unresolved !== "number" || !Number.isSafeInteger(unresolved) || unresolved < 0) return;
+      childCost = cost;
+      childCostIncomplete = unresolved > 0;
+      refresh();
+    });
+    const cancel = () => {
+      clearTimeout(timeout);
+      unsubscribe();
+      cancelCostRequest = undefined;
+    };
+    cancelCostRequest = cancel;
+    pi.events.emit("subagents:rpc:v1:request", { version: 1, requestId, method: "cost" });
+  };
+
+  pi.events.on("subagents:rpc:v1:ready", refreshChildCost);
 
   pi.on("session_start", async (_event, ctx) => {
+    cancelCostRequest?.();
+    childCost = 0;
+    childCostIncomplete = false;
     if (!ctx.hasUI) return;
 
     ctx.ui.setFooter((tui, theme, footerData) => {
@@ -152,6 +195,7 @@ export default function (pi: ExtensionAPI) {
 
       return {
         dispose() {
+          cancelCostRequest?.();
           requestRender = undefined;
         },
         invalidate() {},
@@ -164,8 +208,8 @@ export default function (pi: ExtensionAPI) {
             ? `${usage.percent != null ? `${usage.percent.toFixed(1)}%` : "—%"} / ${formatTokens(usage.contextWindow)}`
             : "—";
 
-          const sessionCost = computeSessionCost(ctx);
-          const costText = formatCost(sessionCost);
+          const sessionCost = computeSessionCost(ctx) + childCost;
+          const costText = `${formatCost(sessionCost)}${childCostIncomplete ? "+" : ""}`;
           const branch = getGitBranch(ctx.cwd);
           const worktree = getWorktreeName(ctx.cwd);
 
@@ -192,6 +236,7 @@ export default function (pi: ExtensionAPI) {
         },
       };
     });
+    refreshChildCost();
   });
 
   pi.on("session_shutdown", async (_event, ctx) => {
@@ -201,7 +246,15 @@ export default function (pi: ExtensionAPI) {
   // Re-render on any state change
   pi.on("model_select", async () => refresh());
   pi.on("thinking_level_select", async () => refresh());
-  pi.on("turn_end", async () => refresh());
+  pi.on("turn_end", async () => { refresh(); refreshChildCost(); });
+  pi.on("agent_settled", async () => refreshChildCost());
+  pi.on("session_compact", async () => { refresh(); refreshChildCost(); });
+  pi.on("session_tree", async () => {
+    childCost = 0;
+    childCostIncomplete = false;
+    refresh();
+    refreshChildCost();
+  });
   pi.on("message_end", async () => refresh());
   pi.on("agent_end", async () => refresh());
 }
