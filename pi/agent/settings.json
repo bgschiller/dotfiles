@@ -53,6 +53,9 @@
   "lastChangelogVersion": "1.4.0",
   "theme": "dark",
   "tuiMode": "regular",
+  "terminal": {
+    "hyperlinks": false
+  },
   "warnings": {
     "anthropicExtraUsage": false
   },
