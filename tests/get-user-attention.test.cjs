@@ -16,14 +16,18 @@ test('OSC 7501 encodes single-line text and respects the UTF-8 byte limit', () =
   assert.equal(passthrough(osc, true), `\x1bPtmux;${osc.replace(/\x1b/g, '\x1b\x1b')}\x1b\\`);
 });
 
-function invoke(args, env = {}, platform = 'darwin') {
+function invoke(args, env = {}, platform = 'darwin', focus = { data: [{ storeAssertionRecords: [] }] }) {
   const calls = [], writes = [];
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../bin/get-user-attention'), 'utf8'), {
     module,
     require: (id) => id === 'node:child_process' ? {
-      execFileSync: (...args) => calls.push(args),
-    } : {
+      execFileSync: (...args) => { calls.push(args); return 'true\n'; },
+    } : id === 'node:os' ? { homedir: () => '/home/test' } : id === 'node:path' ? path : {
+      readFileSync: () => {
+        if (focus instanceof Error) throw focus;
+        return typeof focus === 'string' ? focus : JSON.stringify(focus);
+      },
       openSync: () => 42, closeSync: () => {},
       writeSync: (fd, data) => writes.push([fd, data]),
     },
@@ -40,14 +44,41 @@ test('default notification sets tmux and plays the local chime', () => {
   assert.ok(writes[0][1].startsWith('\x1bPtmux;'));
 });
 
-test('working is quiet, SSH rings the local terminal instead of remote afplay', () => {
+test('working is quiet and SSH emits BEL instead of playing sound on the remote host', () => {
   const working = invoke(['--state', 'working'], { TMUX_PANE: '%7' });
   assert.equal(working.calls.length, 1);
   assert.equal(working.calls[0][1].at(-1), '0');
-  const remote = invoke(['--state', 'error'], { SSH_CONNECTION: 'remote' });
-  assert.equal(remote.calls.length, 0);
-  assert.equal(remote.writes[1][1], '\x07');
+  for (const env of [{ SSH_CONNECTION: 'remote' }, { SSH_TTY: '/dev/pts/1' }]) {
+    const remote = invoke(['--state', 'error'], env);
+    assert.equal(remote.calls.length, 0);
+    assert.equal(remote.writes.length, 2);
+    assert.equal(remote.writes[1][1], '\x07');
+    assert.equal(invoke(['--state', 'working'], env).writes.length, 1);
+  }
   assert.equal(invoke(['--quiet'], { SSH_TTY: '/dev/pts/1' }).writes.length, 1);
+});
+
+test('Focus assertions and unreadable or unknown Focus state suppress sound, not status', () => {
+  for (const focus of [
+    { data: [{ storeAssertionRecords: [{ assertionDetails: { assertionIdentifier: 'focus' } }] }] },
+    { data: [{ storeAssertionRecords: [] }, { storeAssertionRecords: [{}] }] },
+    new Error('EPERM'), '{invalid', null, {}, { data: [] }, { data: [{}] },
+    { data: [null] }, { data: [{ storeAssertionRecords: {} }] },
+  ]) {
+    const { calls, writes } = invoke([], { TMUX_PANE: '%7' }, 'darwin', focus);
+    assert.ok(!calls.some(([command]) => command === 'afplay'));
+    assert.equal(calls[0][1].at(-1), '1');
+    assert.equal(writes.length, 1);
+  }
+});
+
+test('quiet skips Focus probing and unsupported platforms stay silent', () => {
+  assert.equal(invoke(['--quiet']).calls.length, 0);
+  for (const platform of ['win32', 'linux']) {
+    const { calls, writes } = invoke([], {}, platform);
+    assert.equal(calls.length, 0);
+    assert.equal(writes.length, 1);
+  }
 });
 
 test('all states emit only program status, never desktop notifications', () => {

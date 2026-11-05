@@ -2,6 +2,21 @@
 // Report program status, highlight tmux, and (for attention states) chime.
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+function soundAllowed() {
+  // A remote host cannot inspect the listening machine's Focus state.
+  if (process.env.SSH_CONNECTION || process.env.SSH_TTY || process.platform !== 'darwin') return false;
+  try {
+    // macOS has no public CLI for Focus. Treat unavailable/changed data as quiet.
+    const { data } = JSON.parse(fs.readFileSync(path.join(os.homedir(), 'Library/DoNotDisturb/DB/Assertions.json'), 'utf8'));
+    return Array.isArray(data) && data.length > 0 && data.every((store) =>
+      Array.isArray(store?.storeAssertionRecords) && store.storeAssertionRecords.length === 0);
+  } catch {
+    return false;
+  }
+}
 
 function singleLine(message) {
   // Keep terminal payloads single-line and bounded to 2048 UTF-8 bytes.
@@ -63,8 +78,8 @@ function main(args) {
     else { fd = fs.openSync('/dev/tty', 'w'); owned = true; }
     const message = words.join(' ') || 'Ready for your attention';
     fs.writeSync(fd, passthrough(oscStatus(state, app, message), !!process.env.TMUX));
-    // Remote sound must be played by the LOCAL terminal, not the SSH server.
-    if (attention && !quiet && (process.env.SSH_CONNECTION || process.env.SSH_TTY || process.platform === 'linux')) {
+    // Let the listening terminal handle remote bells and its own sound policy.
+    if (attention && !quiet && (process.env.SSH_CONNECTION || process.env.SSH_TTY)) {
       fs.writeSync(fd, '\x07');
     }
   } catch {
@@ -72,9 +87,8 @@ function main(args) {
   } finally {
     if (owned) fs.closeSync(fd);
   }
-  if (attention && !quiet && !process.env.SSH_CONNECTION && !process.env.SSH_TTY) {
-    if (process.platform === 'darwin') run('afplay', ['/System/Library/Sounds/Glass.aiff']);
-    else if (process.platform === 'win32') run('powershell', ['-c', '[System.Media.SystemSounds]::Beep.Play()']);
+  if (attention && !quiet && soundAllowed()) {
+    run('afplay', ['/System/Library/Sounds/Glass.aiff']);
   }
 }
 
