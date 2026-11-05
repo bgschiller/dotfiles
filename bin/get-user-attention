@@ -11,8 +11,12 @@ function soundAllowed() {
   try {
     // macOS has no public CLI for Focus. Treat unavailable/changed data as quiet.
     const { data } = JSON.parse(fs.readFileSync(path.join(os.homedir(), 'Library/DoNotDisturb/DB/Assertions.json'), 'utf8'));
-    return Array.isArray(data) && data.length > 0 && data.every((store) =>
-      Array.isArray(store?.storeAssertionRecords) && store.storeAssertionRecords.length === 0);
+    if (!Array.isArray(data) || data.length === 0 || !data.every((store) =>
+      Array.isArray(store?.storeAssertionRecords) && store.storeAssertionRecords.length === 0)) return false;
+    const microphone = execFileSync('/usr/bin/swift', [path.join(__dirname, 'get-user-attention-microphone.swift')], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000,
+    });
+    return microphone.trim() === 'inactive';
   } catch {
     return false;
   }

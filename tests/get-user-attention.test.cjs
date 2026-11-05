@@ -16,13 +16,19 @@ test('OSC 7501 encodes single-line text and respects the UTF-8 byte limit', () =
   assert.equal(passthrough(osc, true), `\x1bPtmux;${osc.replace(/\x1b/g, '\x1b\x1b')}\x1b\\`);
 });
 
-function invoke(args, env = {}, platform = 'darwin', focus = { data: [{ storeAssertionRecords: [] }] }) {
+function invoke(args, env = {}, platform = 'darwin', focus = { data: [{ storeAssertionRecords: [] }] }, microphone = 'inactive\n') {
   const calls = [], writes = [];
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../bin/get-user-attention'), 'utf8'), {
     module,
     require: (id) => id === 'node:child_process' ? {
-      execFileSync: (...args) => { calls.push(args); return 'true\n'; },
+      execFileSync: (...args) => {
+        calls.push(args);
+        if (args[0] === '/usr/bin/swift') {
+          if (microphone instanceof Error) throw microphone;
+          return microphone;
+        }
+      },
     } : id === 'node:os' ? { homedir: () => '/home/test' } : id === 'node:path' ? path : {
       readFileSync: () => {
         if (focus instanceof Error) throw focus;
@@ -32,6 +38,7 @@ function invoke(args, env = {}, platform = 'darwin', focus = { data: [{ storeAss
       writeSync: (fd, data) => writes.push([fd, data]),
     },
     process: { env, platform, stdout: { isTTY: false } }, Buffer, console,
+    __dirname: path.join(__dirname, '../bin'),
   });
   module.exports.main(args);
   return { calls, writes };
@@ -40,7 +47,8 @@ function invoke(args, env = {}, platform = 'darwin', focus = { data: [{ storeAss
 test('default notification sets tmux and plays the local chime', () => {
   const { calls, writes } = invoke(['CI passed'], { TMUX: 'socket', TMUX_PANE: '%7' });
   assert.equal(JSON.stringify(calls[0][1]), JSON.stringify(['set-window-option', '-t', '%7', '@user_attention', '1']));
-  assert.equal(calls[1][0], 'afplay');
+  assert.equal(calls[1][0], '/usr/bin/swift');
+  assert.equal(calls[2][0], 'afplay');
   assert.ok(writes[0][1].startsWith('\x1bPtmux;'));
 });
 
@@ -66,6 +74,16 @@ test('Focus assertions and unreadable or unknown Focus state suppress sound, not
     { data: [null] }, { data: [{ storeAssertionRecords: {} }] },
   ]) {
     const { calls, writes } = invoke([], { TMUX_PANE: '%7' }, 'darwin', focus);
+    assert.ok(!calls.some(([command]) => command === 'afplay'));
+    assert.equal(calls[0][1].at(-1), '1');
+    assert.equal(writes.length, 1);
+  }
+});
+
+test('active or unknown microphone state suppresses chimes without suppressing status', () => {
+  for (const microphone of ['active\n', '', 'unexpected', new Error('timeout')]) {
+    const { calls, writes } = invoke([], { TMUX_PANE: '%7' }, 'darwin', undefined, microphone);
+    assert.ok(calls.some(([command]) => command === '/usr/bin/swift'));
     assert.ok(!calls.some(([command]) => command === 'afplay'));
     assert.equal(calls[0][1].at(-1), '1');
     assert.equal(writes.length, 1);
