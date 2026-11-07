@@ -50,7 +50,7 @@
     "deepseek/deepseek-v4-flash",
     "deepseek/deepseek-flash"
   ],
-  "lastChangelogVersion": "1.4.0",
+  "lastChangelogVersion": "1.5.0",
   "theme": "dark",
   "tuiMode": "regular",
   "terminal": {
@@ -68,5 +68,10 @@
         "thinking": "high"
       }
     }
+  },
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:mitsupi\",\"scope\":\"user\"}": "1.6.0",
+    "{\"source\":\"npm:pi-claude-oauth-adapter\",\"scope\":\"user\"}": "0.2.2",
+    "{\"source\":\"npm:pi-subagents\",\"scope\":\"user\"}": "0.86.0"
   }
 }
