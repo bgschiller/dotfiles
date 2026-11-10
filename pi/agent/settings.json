@@ -46,9 +46,9 @@
     "npm:potetos-for-everyone"
   ],
   "enabledModels": [
-    "openai-codex/gpt-5.6-terra",
+    "openai-codex/gpt-6.1-terra",
     "openai-codex/gpt-6.1-sol",
-    "openai-codex/gpt-5.6-luna",
+    "openai-codex/gpt-6-luna",
     "deepseek/deepseek-v4-pro",
     "deepseek/deepseek-flash"
   ],
@@ -66,7 +66,7 @@
     "agentOverrides": {
       "reviewer": {
         "advertise": true,
-        "model": "openai-codex/gpt-5.6-sol",
+        "model": "openai-codex/gpt-6.1-sol",
         "thinking": "high"
       }
     }
