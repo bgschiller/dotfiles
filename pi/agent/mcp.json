@@ -1,3 +1,8 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "sumologic": {
+      "url": "https://apigw.prod-platform-plane.grammarlyaws.com/sumologic-mcp-server/mcp",
+      "enabled": false
+    }
+  }
 }
