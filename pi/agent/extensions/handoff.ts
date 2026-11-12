@@ -83,7 +83,7 @@ export default function (pi: ExtensionAPI): void {
 			}
 
 			const extra = args.trim();
-			const prompt = extra ? `${HANDOFF_PROMPT}\n\nAdditional instructions: ${extra}` : HANDOFF_PROMPT;
+			const prompt = extra ? `${HANDOFF_PROMPT}\n\nAdditional instructions: Handoff ${extra}` : HANDOFF_PROMPT;
 
 			ctx.ui.notify("Asking the agent to wrap up and write a handoff message...", "info");
 

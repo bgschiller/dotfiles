@@ -13,7 +13,7 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify('Usage: /wait on the CI jobs finishing, then examine the results', 'info');
         return;
       }
-      pi.sendUserMessage(`Use the wait_for tool for this request. Identify the exact target and prepare an observational JSON check command first. ${args}`);
+      pi.sendUserMessage(`Use the wait_for tool for this request. Identify the exact target and prepare an observational JSON check command first. Wait ${args}`);
     },
   });
 
